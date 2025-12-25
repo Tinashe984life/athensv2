@@ -1,1 +1,23 @@
-backend/venv
+# ===== BACKEND =====
+backend/venv/
+backend/.venv/
+backend/*.db
+backend/*.sqlite
+backend/__pycache__/
+backend/.env
+backend/instance/
+backend/app/__pycache__/
+backend/app/routes/__pycache__/
+
+
+
+# ===== FRONTEND (will create soon) =====
+frontend/node_modules/
+frontend/build/
+frontend/.env.local
+
+# ===== GENERAL =====
+.DS_Store
+.vscode/
+.idea/
+*.log
