@@ -28,15 +28,13 @@ def create_app():
     jwt.init_app(app)
     CORS(app, supports_credentials=True)
     
-    # Register blueprints
-    from app.routes import auth, athletes, health
+    # Register blueprints - IMPORTANT: Import here to avoid circular imports
+    from app.routes.health import bp as health_bp
+    from app.routes.auth import bp as auth_bp
+    from app.routes.athletes import bp as athletes_bp
     
-    app.register_blueprint(health.bp)
-    app.register_blueprint(auth.bp)
-    app.register_blueprint(athletes.bp)
-    
-    # Create tables
-    with app.app_context():
-        db.create_all()
+    app.register_blueprint(health_bp)
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(athletes_bp)
     
     return app
