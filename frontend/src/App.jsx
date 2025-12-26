@@ -15,9 +15,17 @@ function App() {
 
   useEffect(() => {
     // Check API health on mount
-    health.check()
-      .then(() => setApiStatus('healthy'))
-      .catch(() => setApiStatus('unhealthy'));
+    const checkApiHealth = async () => {
+      try {
+        await health.check();
+        setApiStatus('healthy');
+      } catch (error) {
+        console.error('API connection error:', error);
+        setApiStatus('unhealthy');
+      }
+    };
+    
+    checkApiHealth();
     
     // Check if token exists in localStorage
     const token = localStorage.getItem('access_token');
@@ -41,24 +49,29 @@ function App() {
     setUser(null);
   };
 
+  // Show loading spinner while checking API
   if (apiStatus === 'checking') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-cyan mx-auto"></div>
-          <p className="mt-4 text-slate-300">Connecting to Athens Sports API...</p>
+          <p className="mt-4 text-slate-300">Starting Athens Sports...</p>
         </div>
       </div>
     );
   }
 
-  if (apiStatus === 'unhealthy') {
+  // Show error only if we're NOT on the root path
+  // This allows the app to load even if API is initially unreachable
+  const isRootPath = window.location.pathname === '/';
+  
+  if (apiStatus === 'unhealthy' && !isRootPath) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="text-center p-8 bg-red-900/20 border border-red-700 rounded-xl max-w-md">
           <h2 className="text-2xl font-bold text-red-400 mb-4">API Connection Failed</h2>
           <p className="text-slate-300 mb-4">
-            Unable to connect to the backend server. Please make sure the Flask server is running on port 5000.
+            Unable to connect to the backend server. The app may still work for browsing.
           </p>
           <div className="space-y-3">
             <button 
@@ -68,10 +81,13 @@ function App() {
               Retry Connection
             </button>
             <button 
-              onClick={() => window.open('http://localhost:5000/api/health', '_blank')}
+              onClick={() => {
+                // Try to load the app anyway
+                setApiStatus('healthy');
+              }}
               className="btn-secondary w-full"
             >
-              Test Backend Directly
+              Continue Anyway
             </button>
           </div>
         </div>
