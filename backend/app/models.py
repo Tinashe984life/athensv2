@@ -1,6 +1,9 @@
+# backend/app/models.py - UPDATE EXISTING FILE
+
 from app import db
-from datetime import datetime
+from datetime import datetime, date
 import bcrypt
+import uuid
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -18,12 +21,24 @@ class User(db.Model):
     # Relationships
     team = db.relationship('Team', backref='coach', uselist=False, foreign_keys='Team.coach_id')
     athlete_profile = db.relationship('Athlete', backref='user', uselist=False)
+    coach_profile = db.relationship('Coach', backref='user', uselist=False)
     
     def set_password(self, password):
         self.password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     
     def check_password(self, password):
         return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'username': self.username,
+            'email': self.email,
+            'name': self.name,
+            'surname': self.surname,
+            'role': self.role,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
 
 class Team(db.Model):
     __tablename__ = 'teams'
@@ -32,10 +47,22 @@ class Team(db.Model):
     name = db.Column(db.String(100), nullable=False)
     coach_id = db.Column(db.String(50), db.ForeignKey('users.id'), nullable=False)
     sport = db.Column(db.String(50), nullable=True)
+    season = db.Column(db.String(50), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships
     athletes = db.relationship('Athlete', backref='team', lazy=True)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'coach_id': self.coach_id,
+            'sport': self.sport,
+            'season': self.season,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'athlete_count': len(self.athletes)
+        }
 
 class Athlete(db.Model):
     __tablename__ = 'athletes'
@@ -43,12 +70,264 @@ class Athlete(db.Model):
     id = db.Column(db.String(50), primary_key=True)
     user_id = db.Column(db.String(50), db.ForeignKey('users.id'), unique=True, nullable=False)
     team_id = db.Column(db.String(50), db.ForeignKey('teams.id'), nullable=False)
+    jersey_number = db.Column(db.Integer, nullable=True)
     age = db.Column(db.Integer, nullable=True)
+    date_of_birth = db.Column(db.Date, nullable=True)
     height = db.Column(db.Float, nullable=True)  # in cm
     weight = db.Column(db.Float, nullable=True)  # in kg
     position = db.Column(db.String(50), nullable=True)
+    dominant_side = db.Column(db.String(10), nullable=True)  # left, right, ambidextrous
     photo_url = db.Column(db.String(500), nullable=True)
     bio_notes = db.Column(db.Text, nullable=True)
+    injury_history = db.Column(db.Text, nullable=True)
+    medical_notes = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    wellness_entries = db.relationship('WellnessEntry', backref='athlete', lazy=True, order_by='desc(WellnessEntry.date)')
+    performance_tests = db.relationship('PerformanceTest', backref='athlete', lazy=True, order_by='desc(PerformanceTest.test_date)')
+    injuries = db.relationship('InjuryRecord', backref='athlete', lazy=True, order_by='desc(InjuryRecord.date_reported)')
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'team_id': self.team_id,
+            'jersey_number': self.jersey_number,
+            'age': self.age,
+            'date_of_birth': self.date_of_birth.isoformat() if self.date_of_birth else None,
+            'height': self.height,
+            'weight': self.weight,
+            'position': self.position,
+            'dominant_side': self.dominant_side,
+            'photo_url': self.photo_url,
+            'bio_notes': self.bio_notes,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'user': self.user.to_dict() if self.user else None
+        }
+    
+    def calculate_age(self):
+        if self.date_of_birth:
+            today = date.today()
+            return today.year - self.date_of_birth.year - ((today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day))
+        return None
 
+class Coach(db.Model):
+    __tablename__ = 'coaches'
+    
+    id = db.Column(db.String(50), primary_key=True)
+    user_id = db.Column(db.String(50), db.ForeignKey('users.id'), unique=True, nullable=False)
+    qualification = db.Column(db.String(100), nullable=True)
+    years_experience = db.Column(db.Integer, nullable=True)
+    specialization = db.Column(db.String(100), nullable=True)
+    contact_number = db.Column(db.String(20), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'qualification': self.qualification,
+            'years_experience': self.years_experience,
+            'specialization': self.specialization,
+            'contact_number': self.contact_number,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'user': self.user.to_dict() if self.user else None
+        }
+
+# Add these models for future phases (preparing ahead)
+class WellnessEntry(db.Model):
+    __tablename__ = 'wellness_entries'
+    
+    id = db.Column(db.String(50), primary_key=True, default=lambda: str(uuid.uuid4()))
+    athlete_id = db.Column(db.String(50), db.ForeignKey('athletes.id'), nullable=False)
+    date = db.Column(db.Date, nullable=False, default=date.today)
+    sleep_hours = db.Column(db.Float, nullable=True)  # hours
+    sleep_quality = db.Column(db.Integer, nullable=True)  # 1-5 scale
+    stress_level = db.Column(db.Integer, nullable=True)  # 1-5 scale
+    muscle_soreness = db.Column(db.Integer, nullable=True)  # 1-5 scale
+    nutrition_quality = db.Column(db.Integer, nullable=True)  # 1-5 scale
+    mood = db.Column(db.Integer, nullable=True)  # 1-5 scale
+    readiness_score = db.Column(db.Integer, nullable=True)  # 1-10 scale
+    energy_level = db.Column(db.Integer, nullable=True)  # 1-5 scale
+    motivation_level = db.Column(db.Integer, nullable=True)  # 1-5 scale
+    previous_session_rpe = db.Column(db.Integer, nullable=True)  # RPE 1-10
+    previous_session_duration = db.Column(db.Integer, nullable=True)  # minutes
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def calculate_readiness_score(self):
+        # Simple readiness calculation
+        scores = [
+            self.sleep_quality,
+            self.stress_level,
+            self.muscle_soreness,
+            self.nutrition_quality,
+            self.mood,
+            self.energy_level,
+            self.motivation_level
+        ]
+        valid_scores = [s for s in scores if s is not None]
+        if valid_scores:
+            # Invert stress and soreness (lower is better)
+            adjusted_scores = []
+            for i, score in enumerate(valid_scores):
+                if i in [1, 2]:  # stress and soreness indices
+                    adjusted_scores.append(6 - score)  # invert 1-5 scale
+                else:
+                    adjusted_scores.append(score)
+            avg_score = sum(adjusted_scores) / len(adjusted_scores)
+            return round(avg_score * 2)  # Convert to 1-10 scale
+        return None
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'athlete_id': self.athlete_id,
+            'date': self.date.isoformat() if self.date else None,
+            'sleep_hours': self.sleep_hours,
+            'sleep_quality': self.sleep_quality,
+            'stress_level': self.stress_level,
+            'muscle_soreness': self.muscle_soreness,
+            'nutrition_quality': self.nutrition_quality,
+            'mood': self.mood,
+            'readiness_score': self.readiness_score or self.calculate_readiness_score(),
+            'energy_level': self.energy_level,
+            'motivation_level': self.motivation_level,
+            'previous_session_rpe': self.previous_session_rpe,
+            'previous_session_duration': self.previous_session_duration,
+            'notes': self.notes,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+class PerformanceTest(db.Model):
+    __tablename__ = 'performance_tests'
+    
+    id = db.Column(db.String(50), primary_key=True, default=lambda: str(uuid.uuid4()))
+    athlete_id = db.Column(db.String(50), db.ForeignKey('athletes.id'), nullable=False)
+    test_date = db.Column(db.Date, nullable=False, default=date.today)
+    test_type = db.Column(db.String(50), nullable=False)  # 'strength', 'speed', 'agility', 'endurance', 'flexibility'
+    
+    # Anthropometric measurements
+    height = db.Column(db.Float, nullable=True)  # cm
+    weight = db.Column(db.Float, nullable=True)  # kg
+    body_fat_percentage = db.Column(db.Float, nullable=True)
+    
+    # Strength tests
+    bench_press_1rm = db.Column(db.Float, nullable=True)  # kg
+    squat_1rm = db.Column(db.Float, nullable=True)  # kg
+    deadlift_1rm = db.Column(db.Float, nullable=True)  # kg
+    pull_ups_max = db.Column(db.Integer, nullable=True)
+    push_ups_1min = db.Column(db.Integer, nullable=True)
+    sit_ups_2min = db.Column(db.Integer, nullable=True)
+    
+    # Speed tests
+    sprint_10m = db.Column(db.Float, nullable=True)  # seconds
+    sprint_20m = db.Column(db.Float, nullable=True)  # seconds
+    sprint_40m = db.Column(db.Float, nullable=True)  # seconds
+    
+    # Agility tests
+    agility_t_test = db.Column(db.Float, nullable=True)  # seconds
+    agility_505 = db.Column(db.Float, nullable=True)  # seconds
+    illinois_agility = db.Column(db.Float, nullable=True)  # seconds
+    
+    # Jump tests
+    vertical_jump = db.Column(db.Float, nullable=True)  # cm
+    broad_jump = db.Column(db.Float, nullable=True)  # cm
+    single_leg_jump_left = db.Column(db.Float, nullable=True)  # cm
+    single_leg_jump_right = db.Column(db.Float, nullable=True)  # cm
+    
+    # Endurance tests
+    yo_yo_test = db.Column(db.Float, nullable=True)  # distance
+    bronco_test = db.Column(db.Float, nullable=True)  # time
+    
+    # Flexibility tests
+    sit_and_reach = db.Column(db.Float, nullable=True)  # cm
+    dorsiflexion_left = db.Column(db.Float, nullable=True)  # cm
+    dorsiflexion_right = db.Column(db.Float, nullable=True)  # cm
+    
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'athlete_id': self.athlete_id,
+            'test_date': self.test_date.isoformat() if self.test_date else None,
+            'test_type': self.test_type,
+            'height': self.height,
+            'weight': self.weight,
+            'body_fat_percentage': self.body_fat_percentage,
+            'bench_press_1rm': self.bench_press_1rm,
+            'squat_1rm': self.squat_1rm,
+            'deadlift_1rm': self.deadlift_1rm,
+            'pull_ups_max': self.pull_ups_max,
+            'push_ups_1min': self.push_ups_1min,
+            'sit_ups_2min': self.sit_ups_2min,
+            'sprint_10m': self.sprint_10m,
+            'sprint_20m': self.sprint_20m,
+            'sprint_40m': self.sprint_40m,
+            'agility_t_test': self.agility_t_test,
+            'agility_505': self.agility_505,
+            'illinois_agility': self.illinois_agility,
+            'vertical_jump': self.vertical_jump,
+            'broad_jump': self.broad_jump,
+            'single_leg_jump_left': self.single_leg_jump_left,
+            'single_leg_jump_right': self.single_leg_jump_right,
+            'yo_yo_test': self.yo_yo_test,
+            'bronco_test': self.bronco_test,
+            'sit_and_reach': self.sit_and_reach,
+            'dorsiflexion_left': self.dorsiflexion_left,
+            'dorsiflexion_right': self.dorsiflexion_right,
+            'notes': self.notes,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+class InjuryRecord(db.Model):
+    __tablename__ = 'injury_records'
+    
+    id = db.Column(db.String(50), primary_key=True, default=lambda: str(uuid.uuid4()))
+    athlete_id = db.Column(db.String(50), db.ForeignKey('athletes.id'), nullable=False)
+    injury_type = db.Column(db.String(100), nullable=False)  # 'muscle strain', 'ligament sprain', 'concussion', etc.
+    body_part = db.Column(db.String(100), nullable=False)
+    side = db.Column(db.String(10), nullable=True)  # 'left', 'right', 'both'
+    severity = db.Column(db.String(20), nullable=False)  # 'mild', 'moderate', 'severe'
+    date_reported = db.Column(db.Date, nullable=False, default=date.today)
+    date_occurred = db.Column(db.Date, nullable=True)
+    mechanism = db.Column(db.Text, nullable=True)  # How it happened
+    symptoms = db.Column(db.Text, nullable=True)
+    diagnosis = db.Column(db.Text, nullable=True)
+    treatment_plan = db.Column(db.Text, nullable=True)
+    estimated_recovery_time = db.Column(db.Integer, nullable=True)  # days
+    status = db.Column(db.String(20), nullable=False, default='active')  # 'active', 'recovered', 'chronic'
+    clearance_date = db.Column(db.Date, nullable=True)
+    clearance_notes = db.Column(db.Text, nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'athlete_id': self.athlete_id,
+            'injury_type': self.injury_type,
+            'body_part': self.body_part,
+            'side': self.side,
+            'severity': self.severity,
+            'date_reported': self.date_reported.isoformat() if self.date_reported else None,
+            'date_occurred': self.date_occurred.isoformat() if self.date_occurred else None,
+            'mechanism': self.mechanism,
+            'symptoms': self.symptoms,
+            'diagnosis': self.diagnosis,
+            'treatment_plan': self.treatment_plan,
+            'estimated_recovery_time': self.estimated_recovery_time,
+            'status': self.status,
+            'clearance_date': self.clearance_date.isoformat() if self.clearance_date else None,
+            'clearance_notes': self.clearance_notes,
+            'notes': self.notes,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }

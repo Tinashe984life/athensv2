@@ -1,7 +1,5 @@
 import axios from 'axios';
 
-// IMPORTANT: For combined deployment, always use relative paths
-// This works in both development and production
 const API_BASE_URL = '/api';
 
 const api = axios.create({
@@ -51,4 +49,29 @@ export const auth = {
 
 export const health = {
   check: () => api.get('/health'),
+};
+
+// NEW: Athlete and Team services
+export const athletes = {
+  getAll: (params = {}) => {
+    const queryParams = new URLSearchParams(params).toString();
+    return api.get(`/athletes${queryParams ? `?${queryParams}` : ''}`);
+  },
+  getById: (athleteId) => api.get(`/athletes/${athleteId}`),
+  create: (athleteData) => api.post('/athletes', athleteData),
+  update: (athleteId, athleteData) => api.put(`/athletes/${athleteId}`, athleteData),
+  delete: (athleteId) => api.delete(`/athletes/${athleteId}`),
+  search: (query, teamId = '') => {
+    const params = new URLSearchParams();
+    if (query) params.append('q', query);
+    if (teamId) params.append('team_id', teamId);
+    return api.get(`/athletes/search?${params.toString()}`);
+  }
+};
+
+export const teams = {
+  getAll: () => api.get('/teams'),
+  getById: (teamId) => api.get(`/teams/${teamId}`),
+  create: (teamData) => api.post('/teams', teamData),
+  update: (teamId, teamData) => api.put(`/teams/${teamId}`, teamData)
 };

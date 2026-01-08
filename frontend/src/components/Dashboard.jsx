@@ -1,6 +1,160 @@
-import React from 'react';
+import React, { useState } from 'react';
+import AthleteList from './AthleteList';
+import TeamManagement from './TeamManagement';
+import AthleteProfile from './AthleteProfile';
 
 const Dashboard = ({ user, onLogout }) => {
+  const [activeTab, setActiveTab] = useState('overview');
+  
+  // Navigation tabs based on user role
+  const coachTabs = [
+    { id: 'overview', label: 'Overview', icon: '📊' },
+    { id: 'athletes', label: 'Athletes', icon: '👥' },
+    { id: 'teams', label: 'Teams', icon: '🏆' },
+    { id: 'wellness', label: 'Wellness', icon: '💪' },
+    { id: 'performance', label: 'Performance', icon: '📈' },
+  ];
+  
+  const athleteTabs = [
+    { id: 'overview', label: 'Overview', icon: '📊' },
+    { id: 'my-stats', label: 'My Stats', icon: '👤' },
+    { id: 'wellness', label: 'Wellness', icon: '💪' },
+    { id: 'performance', label: 'Performance', icon: '📈' },
+    { id: 'goals', label: 'Goals', icon: '🎯' },
+  ];
+  
+  const tabs = user?.role === 'coach' ? coachTabs : athleteTabs;
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'athletes':
+        return <AthleteList user={user} />;
+      case 'teams':
+        return <TeamManagement user={user} />;
+      case 'my-stats':
+        return <AthleteProfile user={user} />;
+      case 'overview':
+      default:
+        return (
+          <>
+            {/* Welcome Banner */}
+            <div className="mb-8">
+              <div className="bg-gradient-to-r from-brand-bg-light to-brand-bg-light/80 border border-brand-border rounded-2xl p-8">
+                <h2 className="text-3xl font-bold text-white mb-3">
+                  Welcome back, {user?.role === 'coach' ? 'Coach' : 'Athlete'} {user?.name}! 👋
+                </h2>
+                <p className="text-slate-300 text-lg">
+                  {user?.role === 'coach' 
+                    ? 'Monitor your team\'s performance and wellness metrics in real-time.'
+                    : 'Track your progress and submit daily wellness checks.'
+                  }
+                </p>
+              </div>
+            </div>
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              {(user?.role === 'coach' 
+                ? [
+                    { label: 'Total Athletes', value: '0', color: 'from-blue-500 to-blue-600', change: '+0' },
+                    { label: 'Teams', value: '0', color: 'from-green-500 to-green-600', change: '+0' },
+                    { label: 'Pending Wellness', value: '0', color: 'from-amber-500 to-amber-600', change: '-0' },
+                    { label: 'Avg Readiness', value: '0%', color: 'from-purple-500 to-purple-600', change: '+0%' },
+                  ]
+                : [
+                    { label: 'Wellness Score', value: '--', color: 'from-blue-500 to-blue-600', change: '--' },
+                    { label: 'Last Test', value: '--', color: 'from-green-500 to-green-600', change: '--' },
+                    { label: 'Training Days', value: '0', color: 'from-amber-500 to-amber-600', change: '+0' },
+                    { label: 'Goals', value: '0', color: 'from-purple-500 to-purple-600', change: '+0' },
+                  ]
+              ).map((stat, index) => (
+                <div key={index} className="bg-brand-bg-light border border-brand-border rounded-xl p-6 hover:border-brand-cyan/30 transition-all duration-300">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className={`w-12 h-12 bg-gradient-to-br ${stat.color} rounded-lg flex items-center justify-center`}>
+                      <span className="text-white font-bold text-lg">{stat.value.charAt(0)}</span>
+                    </div>
+                    <span className={`text-sm font-medium ${stat.change.startsWith('+') ? 'text-green-400' : stat.change.startsWith('-') ? 'text-red-400' : 'text-slate-400'}`}>
+                      {stat.change}
+                    </span>
+                  </div>
+                  <h3 className="text-2xl font-bold text-white mb-1">{stat.value}</h3>
+                  <p className="text-sm text-slate-400">{stat.label}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Quick Actions */}
+              <div className="lg:col-span-2">
+                <div className="bg-brand-bg-light border border-brand-border rounded-2xl p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-xl font-bold text-white">Quick Actions</h3>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {(user?.role === 'coach' 
+                      ? [
+                          { title: 'Manage Athletes', desc: 'Add or edit athlete profiles', icon: '👥', onClick: () => setActiveTab('athletes') },
+                          { title: 'View Teams', desc: 'See team details and stats', icon: '🏆', onClick: () => setActiveTab('teams') },
+                          { title: 'Record Session', desc: 'Log training metrics', icon: '📊', onClick: () => alert('Coming in Phase 3') },
+                          { title: 'View Reports', desc: 'Generate performance reports', icon: '📈', onClick: () => alert('Coming in Phase 3') },
+                        ]
+                      : [
+                          { title: 'My Profile', desc: 'View and edit your profile', icon: '👤', onClick: () => setActiveTab('my-stats') },
+                          { title: 'Wellness Check', desc: 'Submit daily wellness', icon: '💪', onClick: () => alert('Coming in Phase 3') },
+                          { title: 'Performance', desc: 'View your test results', icon: '📊', onClick: () => alert('Coming in Phase 3') },
+                          { title: 'Set Goals', desc: 'Define your training goals', icon: '🎯', onClick: () => alert('Coming in Phase 4') },
+                        ]
+                    ).map((action, index) => (
+                      <button 
+                        key={index}
+                        onClick={action.onClick}
+                        className="bg-brand-bg-dark border border-slate-700 hover:border-brand-cyan/50 rounded-xl p-6 text-left transition-all duration-300 hover:scale-[1.02]"
+                      >
+                        <div className="text-3xl mb-4">{action.icon}</div>
+                        <h4 className="font-semibold text-white mb-2">{action.title}</h4>
+                        <p className="text-sm text-slate-400">{action.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Activity */}
+              <div>
+                <div className="bg-brand-bg-light border border-brand-border rounded-2xl p-6 h-full">
+                  <h3 className="text-xl font-bold text-white mb-6">Recent Activity</h3>
+                  <div className="space-y-4">
+                    {[
+                      { user: 'System', action: 'Welcome to Athens Sports', time: 'Just now', type: 'info' },
+                      { user: 'Dashboard', action: 'Phase 2 features available', time: 'Today', type: 'success' },
+                      { user: 'Upcoming', action: 'Wellness checks coming soon', time: 'Phase 3', type: 'info' },
+                      { user: 'Note', action: 'More features in development', time: 'Ongoing', type: 'info' },
+                    ].map((activity, index) => (
+                      <div key={index} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-brand-bg-dark/50 transition-colors">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                          activity.type === 'success' ? 'bg-green-500/20 text-green-400' :
+                          activity.type === 'warning' ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-500/20 text-slate-400'
+                        }`}>
+                          {activity.type === 'success' && '✓'}
+                          {activity.type === 'warning' && '⚠'}
+                          {activity.type === 'info' && 'ℹ'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white truncate">{activity.user}</p>
+                          <p className="text-sm text-slate-400">{activity.action}</p>
+                          <p className="text-xs text-slate-500 mt-1">{activity.time}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        );
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-brand-bg-dark via-gray-900 to-brand-bg-dark">
       {/* Header */}
@@ -40,119 +194,57 @@ const Dashboard = ({ user, onLogout }) => {
               </button>
             </div>
           </div>
+
+          {/* Navigation Tabs */}
+          <div className="flex space-x-1 overflow-x-auto pb-2">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${
+                  activeTab === tab.id
+                    ? 'bg-brand-cyan/20 text-brand-cyan border border-brand-cyan/30'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                }`}
+              >
+                <span>{tab.icon}</span>
+                <span className="font-medium">{tab.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Banner */}
-        <div className="mb-8">
-          <div className="bg-gradient-to-r from-brand-bg-light to-brand-bg-light/80 border border-brand-border rounded-2xl p-8">
-            <h2 className="text-3xl font-bold text-white mb-3">
-              Welcome back, {user?.role === 'coach' ? 'Coach' : 'Athlete'} {user?.name}! 👋
-            </h2>
-            <p className="text-slate-300 text-lg">
-              {user?.role === 'coach' 
-                ? 'Monitor your team\'s performance and wellness metrics in real-time.'
-                : 'Track your progress and submit daily wellness checks.'
-              }
-            </p>
-          </div>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {[
-            { label: 'Total Athletes', value: '24', color: 'from-blue-500 to-blue-600', change: '+3' },
-            { label: 'Active Sessions', value: '18', color: 'from-green-500 to-green-600', change: '+5' },
-            { label: 'Pending Wellness', value: '6', color: 'from-amber-500 to-amber-600', change: '-2' },
-            { label: 'Avg Readiness', value: '84%', color: 'from-purple-500 to-purple-600', change: '+4%' },
-          ].map((stat, index) => (
-            <div key={index} className="bg-brand-bg-light border border-brand-border rounded-xl p-6 hover:border-brand-cyan/30 transition-all duration-300">
-              <div className="flex items-center justify-between mb-4">
-                <div className={`w-12 h-12 bg-gradient-to-br ${stat.color} rounded-lg flex items-center justify-center`}>
-                  <span className="text-white font-bold text-lg">{stat.value.charAt(0)}</span>
-                </div>
-                <span className={`text-sm font-medium ${stat.change.startsWith('+') ? 'text-green-400' : 'text-red-400'}`}>
-                  {stat.change}
-                </span>
-              </div>
-              <h3 className="text-2xl font-bold text-white mb-1">{stat.value}</h3>
-              <p className="text-sm text-slate-400">{stat.label}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Quick Actions */}
-          <div className="lg:col-span-2">
-            <div className="bg-brand-bg-light border border-brand-border rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-white">Quick Actions</h3>
-                <span className="text-sm text-brand-cyan hover:text-white cursor-pointer">View all →</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {[
-                  { title: 'Manage Athletes', desc: 'Add or edit athlete profiles', icon: '👥', color: 'border-blue-500/30 hover:border-blue-500' },
-                  { title: 'Record Session', desc: 'Log training metrics', icon: '📊', color: 'border-green-500/30 hover:border-green-500' },
-                  { title: 'Wellness Check', desc: 'Review athlete status', icon: '💪', color: 'border-amber-500/30 hover:border-amber-500' },
-                  { title: 'View Reports', desc: 'Generate performance reports', icon: '📈', color: 'border-purple-500/30 hover:border-purple-500' },
-                ].map((action, index) => (
-                  <button 
-                    key={index}
-                    className={`bg-brand-bg-dark border ${action.color} rounded-xl p-6 text-left transition-all duration-300 hover:scale-[1.02]`}
-                  >
-                    <div className="text-3xl mb-4">{action.icon}</div>
-                    <h4 className="font-semibold text-white mb-2">{action.title}</h4>
-                    <p className="text-sm text-slate-400">{action.desc}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Recent Activity */}
-          <div>
-            <div className="bg-brand-bg-light border border-brand-border rounded-2xl p-6 h-full">
-              <h3 className="text-xl font-bold text-white mb-6">Recent Activity</h3>
-              <div className="space-y-4">
-                {[
-                  { user: 'Michael Johnson', action: 'Completed wellness check', time: '10 min ago', type: 'success' },
-                  { user: 'Sarah Williams', action: 'Recorded new PB in sprint', time: '45 min ago', type: 'performance' },
-                  { user: 'Team Meeting', action: 'Weekly coach briefing', time: '2 hours ago', type: 'info' },
-                  { user: 'David Chen', action: 'Reported minor injury', time: 'Yesterday', type: 'warning' },
-                ].map((activity, index) => (
-                  <div key={index} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-brand-bg-dark/50 transition-colors">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      activity.type === 'success' ? 'bg-green-500/20 text-green-400' :
-                      activity.type === 'performance' ? 'bg-blue-500/20 text-blue-400' :
-                      activity.type === 'warning' ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-500/20 text-slate-400'
-                    }`}>
-                      {activity.type === 'success' && '✓'}
-                      {activity.type === 'performance' && '🏃'}
-                      {activity.type === 'warning' && '⚠'}
-                      {activity.type === 'info' && '👥'}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white truncate">{activity.user}</p>
-                      <p className="text-sm text-slate-400">{activity.action}</p>
-                      <p className="text-xs text-slate-500 mt-1">{activity.time}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
+        {renderContent()}
+        
         {/* Phase Progress */}
         <div className="mt-8 bg-brand-bg-light border border-brand-border rounded-2xl p-8">
           <h2 className="text-2xl font-bold text-white mb-6">Development Progress</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              { phase: 'Phase 1', title: 'Core Infrastructure', status: 'Complete', items: ['✓ Authentication', '✓ Database Setup', '✓ Basic UI'], color: 'from-green-500 to-green-600' },
-              { phase: 'Phase 2', title: 'Athlete Management', status: 'In Progress', items: ['Athlete Profiles', 'Team Management', 'Basic Dashboard'], color: 'from-brand-cyan to-brand-cyan-dark' },
-              { phase: 'Phase 3', title: 'Performance Tracking', status: 'Upcoming', items: ['Wellness Checks', 'Test Results', 'Injury Logging'], color: 'from-slate-600 to-slate-700' },
+              { 
+                phase: 'Phase 1', 
+                title: 'Core Infrastructure', 
+                status: 'Complete', 
+                items: ['✓ Authentication', '✓ Database Setup', '✓ Basic UI'], 
+                color: 'from-green-500 to-green-600' 
+              },
+              { 
+                phase: 'Phase 2', 
+                title: 'Athlete Management', 
+                status: 'Complete', 
+                items: ['✓ Athlete Profiles', '✓ Team Management', '✓ Basic Dashboard', '✓ Athlete Self-View'], 
+                color: 'from-green-500 to-green-600' 
+              },
+              { 
+                phase: 'Phase 3', 
+                title: 'Wellness Tracking', 
+                status: 'In Progress', 
+                items: ['Daily Wellness Checks', 'Performance Tests', 'Injury Logging', 'Flagging System'], 
+                color: 'from-brand-cyan to-brand-cyan-dark' 
+              },
             ].map((phase, index) => (
               <div key={index} className={`bg-gradient-to-br ${phase.color} rounded-xl p-6`}>
                 <div className="flex items-center justify-between mb-4">
@@ -175,6 +267,11 @@ const Dashboard = ({ user, onLogout }) => {
                 </ul>
               </div>
             ))}
+          </div>
+          <div className="mt-6 pt-6 border-t border-slate-800">
+            <p className="text-slate-400 text-sm">
+              <span className="text-brand-cyan font-semibold">Note:</span> Password change functionality will be implemented in Phase 4 for security features.
+            </p>
           </div>
         </div>
       </main>
