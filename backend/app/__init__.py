@@ -32,11 +32,13 @@ def create_app():
     from app.routes.health import bp as health_bp
     from app.routes.auth import bp as auth_bp
     from app.routes.athletes import bp as athletes_bp
-    from app.routes.teams import bp as teams_bp  # NEW
+    from app.routes.teams import bp as teams_bp
+    from app.routes.wellness import bp as wellness_bp
     
     app.register_blueprint(health_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(athletes_bp)
-    app.register_blueprint(teams_bp)  # NEW
+    app.register_blueprint(teams_bp)
+    app.register_blueprint(wellness_bp) 
     
     return app

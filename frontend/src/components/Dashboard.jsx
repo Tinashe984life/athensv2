@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import AthleteList from './AthleteList';
 import TeamManagement from './TeamManagement';
 import AthleteProfile from './AthleteProfile';
+import DailyWellnessForm from './DailyWellnessForm';
+import WellnessDashboard from './WellnessDashboard';
 
 const Dashboard = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -33,6 +35,12 @@ const Dashboard = ({ user, onLogout }) => {
         return <TeamManagement user={user} />;
       case 'my-stats':
         return <AthleteProfile user={user} />;
+      case 'wellness':
+        // Check if we're on the wellness check form or dashboard
+        if (window.location.hash === '#wellness-check' && user.role === 'athlete') {
+          return <DailyWellnessForm user={user} />;
+        }
+        return <WellnessDashboard user={user} />;
       case 'overview':
       default:
         return (
@@ -95,13 +103,16 @@ const Dashboard = ({ user, onLogout }) => {
                       ? [
                           { title: 'Manage Athletes', desc: 'Add or edit athlete profiles', icon: '👥', onClick: () => setActiveTab('athletes') },
                           { title: 'View Teams', desc: 'See team details and stats', icon: '🏆', onClick: () => setActiveTab('teams') },
-                          { title: 'Record Session', desc: 'Log training metrics', icon: '📊', onClick: () => alert('Coming in Phase 3') },
-                          { title: 'View Reports', desc: 'Generate performance reports', icon: '📈', onClick: () => alert('Coming in Phase 3') },
+                          { title: 'Wellness Dashboard', desc: 'Monitor athlete readiness', icon: '💪', onClick: () => setActiveTab('wellness') },
+                          { title: 'View Reports', desc: 'Generate performance reports', icon: '📈', onClick: () => setActiveTab('performance') },
                         ]
                       : [
                           { title: 'My Profile', desc: 'View and edit your profile', icon: '👤', onClick: () => setActiveTab('my-stats') },
-                          { title: 'Wellness Check', desc: 'Submit daily wellness', icon: '💪', onClick: () => alert('Coming in Phase 3') },
-                          { title: 'Performance', desc: 'View your test results', icon: '📊', onClick: () => alert('Coming in Phase 3') },
+                          { title: 'Wellness Check', desc: 'Submit daily wellness', icon: '💪', onClick: () => {
+                            setActiveTab('wellness');
+                            window.location.hash = 'wellness-check';
+                          }},
+                          { title: 'Performance', desc: 'View your test results', icon: '📊', onClick: () => setActiveTab('performance') },
                           { title: 'Set Goals', desc: 'Define your training goals', icon: '🎯', onClick: () => alert('Coming in Phase 4') },
                         ]
                     ).map((action, index) => (
@@ -125,9 +136,9 @@ const Dashboard = ({ user, onLogout }) => {
                   <h3 className="text-xl font-bold text-white mb-6">Recent Activity</h3>
                   <div className="space-y-4">
                     {[
-                      { user: 'System', action: 'Welcome to Athens Sports', time: 'Just now', type: 'info' },
-                      { user: 'Dashboard', action: 'Phase 2 features available', time: 'Today', type: 'success' },
-                      { user: 'Upcoming', action: 'Wellness checks coming soon', time: 'Phase 3', type: 'info' },
+                      { user: 'System', action: 'Phase 3 features available', time: 'Today', type: 'success' },
+                      { user: 'Wellness Tracking', action: 'Daily check-ins now active', time: 'Phase 3', type: 'info' },
+                      { user: 'Upcoming', action: 'Performance tests coming soon', time: 'Phase 4', type: 'info' },
                       { user: 'Note', action: 'More features in development', time: 'Ongoing', type: 'info' },
                     ].map((activity, index) => (
                       <div key={index} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-brand-bg-dark/50 transition-colors">
@@ -200,7 +211,13 @@ const Dashboard = ({ user, onLogout }) => {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  // Clear hash when switching tabs (except when going to wellness form)
+                  if (tab.id !== 'wellness' || user.role !== 'athlete') {
+                    window.location.hash = '';
+                  }
+                }}
                 className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${
                   activeTab === tab.id
                     ? 'bg-brand-cyan/20 text-brand-cyan border border-brand-cyan/30'
@@ -211,6 +228,24 @@ const Dashboard = ({ user, onLogout }) => {
                 <span className="font-medium">{tab.label}</span>
               </button>
             ))}
+            
+            {/* Athlete Wellness Check Button */}
+            {user?.role === 'athlete' && (
+              <button
+                onClick={() => {
+                  setActiveTab('wellness');
+                  window.location.hash = 'wellness-check';
+                }}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${
+                  window.location.hash === '#wellness-check'
+                    ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                    : 'text-green-400 hover:text-white hover:bg-green-500/20'
+                }`}
+              >
+                <span>✅</span>
+                <span className="font-medium">Check-in</span>
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -242,7 +277,7 @@ const Dashboard = ({ user, onLogout }) => {
                 phase: 'Phase 3', 
                 title: 'Wellness Tracking', 
                 status: 'In Progress', 
-                items: ['Daily Wellness Checks', 'Performance Tests', 'Injury Logging', 'Flagging System'], 
+                items: ['✓ Daily Wellness Checks', '✓ Wellness Dashboard', '✓ Readiness Scores', '✓ Team Overview'], 
                 color: 'from-brand-cyan to-brand-cyan-dark' 
               },
             ].map((phase, index) => (
@@ -269,9 +304,20 @@ const Dashboard = ({ user, onLogout }) => {
             ))}
           </div>
           <div className="mt-6 pt-6 border-t border-slate-800">
-            <p className="text-slate-400 text-sm">
-              <span className="text-brand-cyan font-semibold">Note:</span> Password change functionality will be implemented in Phase 4 for security features.
-            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <p className="text-sm font-medium text-white mb-2">Next Up: Phase 4</p>
+                <p className="text-slate-400 text-sm">Performance Tests & Injury Logging</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-white mb-2">In Progress</p>
+                <p className="text-slate-400 text-sm">Wellness Tracking & Dashboards</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-white mb-2">Coming Later</p>
+                <p className="text-slate-400 text-sm">Mobile App & Advanced Analytics</p>
+              </div>
+            </div>
           </div>
         </div>
       </main>
@@ -284,8 +330,14 @@ const Dashboard = ({ user, onLogout }) => {
               <div className="w-8 h-8 bg-gradient-to-br from-brand-cyan to-brand-cyan-dark rounded-lg"></div>
               <span className="text-white font-semibold">Athens Sports</span>
             </div>
-            <div className="text-sm text-slate-500">
-              © {new Date().getFullYear()} Athens Sports SAAS.
+            <div className="flex items-center space-x-6">
+              <div className="text-sm text-slate-500">
+                © {new Date().getFullYear()} Athens Sports SAAS.
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="text-xs text-slate-500">Phase 3 Active</span>
+              </div>
             </div>
           </div>
         </div>
