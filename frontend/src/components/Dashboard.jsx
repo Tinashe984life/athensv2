@@ -4,6 +4,8 @@ import TeamManagement from './TeamManagement';
 import AthleteProfile from './AthleteProfile';
 import DailyWellnessForm from './DailyWellnessForm';
 import WellnessDashboard from './WellnessDashboard';
+import PerformanceTestForm from './PerformanceTestForm';
+import PerformanceHistory from './PerformanceHistory';
 
 const Dashboard = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -41,6 +43,12 @@ const Dashboard = ({ user, onLogout }) => {
           return <DailyWellnessForm user={user} />;
         }
         return <WellnessDashboard user={user} />;
+      case 'performance':
+        // Check if we're on the performance test form or history
+        if (window.location.hash === '#record-test' && user.role !== 'athlete') {
+          return <PerformanceTestForm user={user} />;
+        }
+        return <PerformanceHistory user={user} />;
       case 'overview':
       default:
         return (
@@ -71,7 +79,7 @@ const Dashboard = ({ user, onLogout }) => {
                   ]
                 : [
                     { label: 'Wellness Score', value: '--', color: 'from-blue-500 to-blue-600', change: '--' },
-                    { label: 'Last Test', value: '--', color: 'from-green-500 to-green-600', change: '--' },
+                    { label: 'Performance Tests', value: '0', color: 'from-green-500 to-green-600', change: '+0' },
                     { label: 'Training Days', value: '0', color: 'from-amber-500 to-amber-600', change: '+0' },
                     { label: 'Goals', value: '0', color: 'from-purple-500 to-purple-600', change: '+0' },
                   ]
@@ -104,7 +112,10 @@ const Dashboard = ({ user, onLogout }) => {
                           { title: 'Manage Athletes', desc: 'Add or edit athlete profiles', icon: '👥', onClick: () => setActiveTab('athletes') },
                           { title: 'View Teams', desc: 'See team details and stats', icon: '🏆', onClick: () => setActiveTab('teams') },
                           { title: 'Wellness Dashboard', desc: 'Monitor athlete readiness', icon: '💪', onClick: () => setActiveTab('wellness') },
-                          { title: 'View Reports', desc: 'Generate performance reports', icon: '📈', onClick: () => setActiveTab('performance') },
+                          { title: 'Record Performance Test', desc: 'Log athlete test results', icon: '📊', onClick: () => {
+                            setActiveTab('performance');
+                            window.location.hash = 'record-test';
+                          }},
                         ]
                       : [
                           { title: 'My Profile', desc: 'View and edit your profile', icon: '👤', onClick: () => setActiveTab('my-stats') },
@@ -112,8 +123,8 @@ const Dashboard = ({ user, onLogout }) => {
                             setActiveTab('wellness');
                             window.location.hash = 'wellness-check';
                           }},
-                          { title: 'Performance', desc: 'View your test results', icon: '📊', onClick: () => setActiveTab('performance') },
-                          { title: 'Set Goals', desc: 'Define your training goals', icon: '🎯', onClick: () => alert('Coming in Phase 4') },
+                          { title: 'Performance History', desc: 'View your test results', icon: '📈', onClick: () => setActiveTab('performance') },
+                          { title: 'Set Goals', desc: 'Define your training goals', icon: '🎯', onClick: () => alert('Coming in Phase 6') },
                         ]
                     ).map((action, index) => (
                       <button 
@@ -136,10 +147,10 @@ const Dashboard = ({ user, onLogout }) => {
                   <h3 className="text-xl font-bold text-white mb-6">Recent Activity</h3>
                   <div className="space-y-4">
                     {[
-                      { user: 'System', action: 'Phase 3 features available', time: 'Today', type: 'success' },
-                      { user: 'Wellness Tracking', action: 'Daily check-ins now active', time: 'Phase 3', type: 'info' },
-                      { user: 'Upcoming', action: 'Performance tests coming soon', time: 'Phase 4', type: 'info' },
-                      { user: 'Note', action: 'More features in development', time: 'Ongoing', type: 'info' },
+                      { user: 'System', action: 'Phase 4 features available', time: 'Today', type: 'success' },
+                      { user: 'Performance Tracking', action: 'Test recording now active', time: 'Phase 4', type: 'info' },
+                      { user: 'Wellness', action: 'Daily checks are working', time: 'Phase 3', type: 'success' },
+                      { user: 'Upcoming', action: 'Coach dashboard improvements', time: 'Phase 5', type: 'info' },
                     ].map((activity, index) => (
                       <div key={index} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-brand-bg-dark/50 transition-colors">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
@@ -213,13 +224,14 @@ const Dashboard = ({ user, onLogout }) => {
                 key={tab.id}
                 onClick={() => {
                   setActiveTab(tab.id);
-                  // Clear hash when switching tabs (except when going to wellness form)
-                  if (tab.id !== 'wellness' || user.role !== 'athlete') {
+                  // Clear hash when switching tabs (except when going to specific forms)
+                  if (!((tab.id === 'wellness' && user.role === 'athlete') || 
+                        (tab.id === 'performance' && user.role !== 'athlete'))) {
                     window.location.hash = '';
                   }
                 }}
                 className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${
-                  activeTab === tab.id
+                  activeTab === tab.id && window.location.hash === ''
                     ? 'bg-brand-cyan/20 text-brand-cyan border border-brand-cyan/30'
                     : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
                 }`}
@@ -246,6 +258,24 @@ const Dashboard = ({ user, onLogout }) => {
                 <span className="font-medium">Check-in</span>
               </button>
             )}
+            
+            {/* Coach Performance Test Button */}
+            {user?.role === 'coach' && (
+              <button
+                onClick={() => {
+                  setActiveTab('performance');
+                  window.location.hash = 'record-test';
+                }}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${
+                  window.location.hash === '#record-test'
+                    ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                    : 'text-purple-400 hover:text-white hover:bg-purple-500/20'
+                }`}
+              >
+                <span>➕</span>
+                <span className="font-medium">Record Test</span>
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -257,7 +287,7 @@ const Dashboard = ({ user, onLogout }) => {
         {/* Phase Progress */}
         <div className="mt-8 bg-brand-bg-light border border-brand-border rounded-2xl p-8">
           <h2 className="text-2xl font-bold text-white mb-6">Development Progress</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {[
               { 
                 phase: 'Phase 1', 
@@ -270,14 +300,21 @@ const Dashboard = ({ user, onLogout }) => {
                 phase: 'Phase 2', 
                 title: 'Athlete Management', 
                 status: 'Complete', 
-                items: ['✓ Athlete Profiles', '✓ Team Management', '✓ Basic Dashboard', '✓ Athlete Self-View'], 
+                items: ['✓ Athlete Profiles', '✓ Team Management', '✓ Basic Dashboard'], 
                 color: 'from-green-500 to-green-600' 
               },
               { 
                 phase: 'Phase 3', 
                 title: 'Wellness Tracking', 
+                status: 'Complete', 
+                items: ['✓ Daily Wellness', '✓ Readiness Scores', '✓ Team Overview'], 
+                color: 'from-green-500 to-green-600' 
+              },
+              { 
+                phase: 'Phase 4', 
+                title: 'Performance Tests', 
                 status: 'In Progress', 
-                items: ['✓ Daily Wellness Checks', '✓ Wellness Dashboard', '✓ Readiness Scores', '✓ Team Overview'], 
+                items: ['✓ Test Recording', '✓ Performance History', '✓ Trend Analysis'], 
                 color: 'from-brand-cyan to-brand-cyan-dark' 
               },
             ].map((phase, index) => (
@@ -306,16 +343,19 @@ const Dashboard = ({ user, onLogout }) => {
           <div className="mt-6 pt-6 border-t border-slate-800">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
-                <p className="text-sm font-medium text-white mb-2">Next Up: Phase 4</p>
-                <p className="text-slate-400 text-sm">Performance Tests & Injury Logging</p>
+                <p className="text-sm font-medium text-white mb-2">Current Focus</p>
+                <p className="text-slate-400 text-sm">Performance Testing System</p>
+                <p className="text-xs text-slate-500 mt-1">Recording, tracking & analytics</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-white mb-2">In Progress</p>
-                <p className="text-slate-400 text-sm">Wellness Tracking & Dashboards</p>
+                <p className="text-sm font-medium text-white mb-2">Next Up: Phase 5</p>
+                <p className="text-slate-400 text-sm">Coach Dashboard & Flagging</p>
+                <p className="text-xs text-slate-500 mt-1">Risk assessment & alerts</p>
               </div>
               <div>
                 <p className="text-sm font-medium text-white mb-2">Coming Later</p>
-                <p className="text-slate-400 text-sm">Mobile App & Advanced Analytics</p>
+                <p className="text-slate-400 text-sm">Injury Logging & Reports</p>
+                <p className="text-xs text-slate-500 mt-1">Comprehensive tracking</p>
               </div>
             </div>
           </div>
@@ -335,8 +375,8 @@ const Dashboard = ({ user, onLogout }) => {
                 © {new Date().getFullYear()} Athens Sports SAAS.
               </div>
               <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-xs text-slate-500">Phase 3 Active</span>
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                <span className="text-xs text-slate-500">Phase 4 Active</span>
               </div>
             </div>
           </div>
