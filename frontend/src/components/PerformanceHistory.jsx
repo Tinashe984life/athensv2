@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { performance } from '../services/performance';
 import { athletes } from '../services/athletes';
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
 import { Line, Bar } from 'react-chartjs-2';
+
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
 const PerformanceHistory = ({ user }) => {
   const [performanceTests, setPerformanceTests] = useState([]);

@@ -1,5 +1,3 @@
-# backend/app/models.py - UPDATE EXISTING FILE
-
 from app import db
 from datetime import datetime, date
 import bcrypt

@@ -34,13 +34,15 @@ def create_app():
     from app.routes.athletes import bp as athletes_bp
     from app.routes.teams import bp as teams_bp
     from app.routes.wellness import bp as wellness_bp
-    from app.routes.performance import bp as performance_bp  # NEW
+    from app.routes.performance import bp as performance_bp 
+    from app.routes.dashboard import bp as dashboard_bp
     
     app.register_blueprint(health_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(athletes_bp)
     app.register_blueprint(teams_bp)
     app.register_blueprint(wellness_bp)
-    app.register_blueprint(performance_bp)  # NEW
+    app.register_blueprint(performance_bp)
+    app.register_blueprint(dashboard_bp)
     
     return app

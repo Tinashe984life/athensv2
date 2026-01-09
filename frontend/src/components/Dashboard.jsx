@@ -6,6 +6,7 @@ import DailyWellnessForm from './DailyWellnessForm';
 import WellnessDashboard from './WellnessDashboard';
 import PerformanceTestForm from './PerformanceTestForm';
 import PerformanceHistory from './PerformanceHistory';
+import CoachDashboard from './CoachDashboard';
 
 const Dashboard = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -13,6 +14,7 @@ const Dashboard = ({ user, onLogout }) => {
   // Navigation tabs based on user role
   const coachTabs = [
     { id: 'overview', label: 'Overview', icon: '📊' },
+    { id: 'coach-dashboard', label: 'Coach Dashboard', icon: '🎯' },
     { id: 'athletes', label: 'Athletes', icon: '👥' },
     { id: 'teams', label: 'Teams', icon: '🏆' },
     { id: 'wellness', label: 'Wellness', icon: '💪' },
@@ -31,6 +33,8 @@ const Dashboard = ({ user, onLogout }) => {
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'coach-dashboard':
+        return <CoachDashboard user={user} />;
       case 'athletes':
         return <AthleteList user={user} />;
       case 'teams':
@@ -313,8 +317,15 @@ const Dashboard = ({ user, onLogout }) => {
               { 
                 phase: 'Phase 4', 
                 title: 'Performance Tests', 
-                status: 'In Progress', 
+                status: 'Complete', 
                 items: ['✓ Test Recording', '✓ Performance History', '✓ Trend Analysis'], 
+                color: 'from-green-500 to-green-600'
+              },
+              { 
+                phase: 'Phase 5', 
+                title: 'Coach Dashboard', 
+                status: 'In Progress', 
+                items: ['✅ Team Overview', '✅ Flagging System', '🔄 ACWR Calculator', '🔄 Risk Assessment'], 
                 color: 'from-brand-cyan to-brand-cyan-dark' 
               },
             ].map((phase, index) => (
