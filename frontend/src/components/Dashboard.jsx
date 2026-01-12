@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AthleteList from './AthleteList';
 import TeamManagement from './TeamManagement';
 import AthleteProfile from './AthleteProfile';
@@ -7,9 +7,26 @@ import WellnessDashboard from './WellnessDashboard';
 import PerformanceTestForm from './PerformanceTestForm';
 import PerformanceHistory from './PerformanceHistory';
 import CoachDashboard from './CoachDashboard';
+import InjuryHistory from './InjuryHistory';
+import ConcussionDashboard from './ConcussionDashboard';
+import InjuryForm from './InjuryForm';
+import { dashboard } from '../services/dashboard';
+import { athletes } from '../services/athletes';
 
 const Dashboard = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('overview');
+  const [showInjuryForm, setShowInjuryForm] = useState(false);
+  const [overviewStats, setOverviewStats] = useState({
+    totalAthletes: 0,
+    totalTeams: 0,
+    pendingWellness: 0,
+    avgReadiness: '0%',
+    totalTests: 0,
+    trainingDays: 0,
+    goals: 0,
+    wellnessScore: '--'
+  });
+  const [loadingStats, setLoadingStats] = useState(true);
   
   // Navigation tabs based on user role
   const coachTabs = [
@@ -19,6 +36,8 @@ const Dashboard = ({ user, onLogout }) => {
     { id: 'teams', label: 'Teams', icon: '🏆' },
     { id: 'wellness', label: 'Wellness', icon: '💪' },
     { id: 'performance', label: 'Performance', icon: '📈' },
+    { id: 'injuries', label: 'Injuries', icon: '🩹' },
+    { id: 'concussion', label: 'Concussion', icon: '🧠' },
   ];
   
   const athleteTabs = [
@@ -27,9 +46,76 @@ const Dashboard = ({ user, onLogout }) => {
     { id: 'wellness', label: 'Wellness', icon: '💪' },
     { id: 'performance', label: 'Performance', icon: '📈' },
     { id: 'goals', label: 'Goals', icon: '🎯' },
+    { id: 'injuries', label: 'Injuries', icon: '🩹' },
   ];
   
   const tabs = user?.role === 'coach' ? coachTabs : athleteTabs;
+
+  useEffect(() => {
+    loadOverviewStats();
+  }, [user]);
+
+  const loadOverviewStats = async () => {
+    try {
+      setLoadingStats(true);
+      
+      if (user.role === 'coach') {
+        // Load coach overview stats
+        const [teamsResponse, athletesResponse, teamOverviewResponse] = await Promise.all([
+          dashboard.getTeamOverview(),
+          athletes.getAll(),
+          dashboard.getTeamOverview()
+        ]);
+
+        if (teamsResponse.data.success) {
+          const teams = teamsResponse.data.teams || [];
+          const totalAthletes = teams.reduce((sum, team) => sum + (team.total_athletes || 0), 0);
+          const pendingWellness = teams.reduce((sum, team) => {
+            const submittedToday = team.athletes?.filter(a => a.has_submitted_today).length || 0;
+            const teamPending = (team.total_athletes || 0) - submittedToday;
+            return sum + teamPending;
+          }, 0);
+          
+          const totalReadiness = teams.reduce((sum, team) => sum + (team.avg_readiness || 0), 0);
+          const avgReadiness = teams.length > 0 ? Math.round(totalReadiness / teams.length) : 0;
+
+          setOverviewStats({
+            totalAthletes,
+            totalTeams: teams.length,
+            pendingWellness,
+            avgReadiness: `${avgReadiness}%`,
+            totalTests: 0, // Will be implemented with performance data
+            trainingDays: 0,
+            goals: 0,
+            wellnessScore: '--'
+          });
+        }
+      } else if (user.role === 'athlete') {
+        // Load athlete overview stats
+        const athleteResponse = await athletes.getAll();
+        if (athleteResponse.data.success) {
+          const athleteData = athleteResponse.data.athletes.find(a => a.user_id === user.id);
+          if (athleteData) {
+            // These would come from actual API calls for athlete stats
+            setOverviewStats({
+              totalAthletes: 0,
+              totalTeams: 0,
+              pendingWellness: 0,
+              avgReadiness: '--',
+              totalTests: 0,
+              trainingDays: 0,
+              goals: 0,
+              wellnessScore: '--'
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error loading overview stats:', err);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
 
   const renderContent = () => {
     switch (activeTab) {
@@ -41,6 +127,10 @@ const Dashboard = ({ user, onLogout }) => {
         return <TeamManagement user={user} />;
       case 'my-stats':
         return <AthleteProfile user={user} />;
+      case 'injuries':
+        return <InjuryHistory user={user} />;
+      case 'concussion':
+        return <ConcussionDashboard user={user} />;
       case 'wellness':
         // Check if we're on the wellness check form or dashboard
         if (window.location.hash === '#wellness-check' && user.role === 'athlete') {
@@ -74,24 +164,84 @@ const Dashboard = ({ user, onLogout }) => {
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {(user?.role === 'coach' 
+              {loadingStats ? (
+                // Loading skeleton
+                Array(4).fill(0).map((_, index) => (
+                  <div key={index} className="bg-brand-bg-light border border-brand-border rounded-xl p-6 animate-pulse">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="w-12 h-12 bg-slate-700 rounded-lg"></div>
+                      <div className="h-4 w-8 bg-slate-700 rounded"></div>
+                    </div>
+                    <div className="h-8 w-20 bg-slate-700 rounded mb-1"></div>
+                    <div className="h-4 w-24 bg-slate-700 rounded"></div>
+                  </div>
+                ))
+              ) : (user?.role === 'coach' 
                 ? [
-                    { label: 'Total Athletes', value: '0', color: 'from-blue-500 to-blue-600', change: '+0' },
-                    { label: 'Teams', value: '0', color: 'from-green-500 to-green-600', change: '+0' },
-                    { label: 'Pending Wellness', value: '0', color: 'from-amber-500 to-amber-600', change: '-0' },
-                    { label: 'Avg Readiness', value: '0%', color: 'from-purple-500 to-purple-600', change: '+0%' },
+                    { 
+                      label: 'Total Athletes', 
+                      value: overviewStats.totalAthletes, 
+                      color: 'from-blue-500 to-blue-600', 
+                      change: '+0',
+                      icon: '👥'
+                    },
+                    { 
+                      label: 'Teams', 
+                      value: overviewStats.totalTeams, 
+                      color: 'from-green-500 to-green-600', 
+                      change: '+0',
+                      icon: '🏆'
+                    },
+                    { 
+                      label: 'Pending Wellness', 
+                      value: overviewStats.pendingWellness, 
+                      color: 'from-amber-500 to-amber-600', 
+                      change: '-0',
+                      icon: '⏳'
+                    },
+                    { 
+                      label: 'Avg Readiness', 
+                      value: overviewStats.avgReadiness, 
+                      color: 'from-purple-500 to-purple-600', 
+                      change: '+0%',
+                      icon: '📊'
+                    },
                   ]
                 : [
-                    { label: 'Wellness Score', value: '--', color: 'from-blue-500 to-blue-600', change: '--' },
-                    { label: 'Performance Tests', value: '0', color: 'from-green-500 to-green-600', change: '+0' },
-                    { label: 'Training Days', value: '0', color: 'from-amber-500 to-amber-600', change: '+0' },
-                    { label: 'Goals', value: '0', color: 'from-purple-500 to-purple-600', change: '+0' },
+                    { 
+                      label: 'Wellness Score', 
+                      value: overviewStats.wellnessScore, 
+                      color: 'from-blue-500 to-blue-600', 
+                      change: '--',
+                      icon: '💪'
+                    },
+                    { 
+                      label: 'Performance Tests', 
+                      value: overviewStats.totalTests, 
+                      color: 'from-green-500 to-green-600', 
+                      change: '+0',
+                      icon: '📈'
+                    },
+                    { 
+                      label: 'Training Days', 
+                      value: overviewStats.trainingDays, 
+                      color: 'from-amber-500 to-amber-600', 
+                      change: '+0',
+                      icon: '🏃'
+                    },
+                    { 
+                      label: 'Goals', 
+                      value: overviewStats.goals, 
+                      color: 'from-purple-500 to-purple-600', 
+                      change: '+0',
+                      icon: '🎯'
+                    },
                   ]
               ).map((stat, index) => (
-                <div key={index} className="bg-brand-bg-light border border-brand-border rounded-xl p-6 hover:border-brand-cyan/30 transition-all duration-300">
+                <div key={index} className="bg-brand-bg-light border border-brand-border rounded-xl p-6 hover:border-brand-cyan/30 transition-all duration-300 group">
                   <div className="flex items-center justify-between mb-4">
-                    <div className={`w-12 h-12 bg-gradient-to-br ${stat.color} rounded-lg flex items-center justify-center`}>
-                      <span className="text-white font-bold text-lg">{stat.value.charAt(0)}</span>
+                    <div className={`w-12 h-12 bg-gradient-to-br ${stat.color} rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                      <span className="text-white text-xl">{stat.icon}</span>
                     </div>
                     <span className={`text-sm font-medium ${stat.change.startsWith('+') ? 'text-green-400' : stat.change.startsWith('-') ? 'text-red-400' : 'text-slate-400'}`}>
                       {stat.change}
@@ -120,6 +270,8 @@ const Dashboard = ({ user, onLogout }) => {
                             setActiveTab('performance');
                             window.location.hash = 'record-test';
                           }},
+                          { title: 'Log New Injury', desc: 'Record athlete injury details', icon: '🩹', onClick: () => setShowInjuryForm(true) },
+                          { title: 'View Concussions', desc: 'Monitor concussion recovery', icon: '🧠', onClick: () => setActiveTab('concussion') },
                         ]
                       : [
                           { title: 'My Profile', desc: 'View and edit your profile', icon: '👤', onClick: () => setActiveTab('my-stats') },
@@ -129,14 +281,16 @@ const Dashboard = ({ user, onLogout }) => {
                           }},
                           { title: 'Performance History', desc: 'View your test results', icon: '📈', onClick: () => setActiveTab('performance') },
                           { title: 'Set Goals', desc: 'Define your training goals', icon: '🎯', onClick: () => alert('Coming in Phase 6') },
+                          { title: 'Injury History', desc: 'View your injury records', icon: '🩹', onClick: () => setActiveTab('injuries') },
+                          { title: 'Concussion Progress', desc: 'Track concussion recovery', icon: '🧠', onClick: () => setActiveTab('concussion') },
                         ]
                     ).map((action, index) => (
                       <button 
                         key={index}
                         onClick={action.onClick}
-                        className="bg-brand-bg-dark border border-slate-700 hover:border-brand-cyan/50 rounded-xl p-6 text-left transition-all duration-300 hover:scale-[1.02]"
+                        className="bg-brand-bg-dark border border-slate-700 hover:border-brand-cyan/50 rounded-xl p-6 text-left transition-all duration-300 hover:scale-[1.02] group"
                       >
-                        <div className="text-3xl mb-4">{action.icon}</div>
+                        <div className="text-3xl mb-4 group-hover:scale-110 transition-transform">{action.icon}</div>
                         <h4 className="font-semibold text-white mb-2">{action.title}</h4>
                         <p className="text-sm text-slate-400">{action.desc}</p>
                       </button>
@@ -151,10 +305,11 @@ const Dashboard = ({ user, onLogout }) => {
                   <h3 className="text-xl font-bold text-white mb-6">Recent Activity</h3>
                   <div className="space-y-4">
                     {[
-                      { user: 'System', action: 'Phase 4 features available', time: 'Today', type: 'success' },
-                      { user: 'Performance Tracking', action: 'Test recording now active', time: 'Phase 4', type: 'info' },
+                      { user: 'System', action: 'Phase 6 features available', time: 'Today', type: 'success' },
+                      { user: 'Injury Tracking', action: 'Concussion logging now active', time: 'Phase 6', type: 'info' },
                       { user: 'Wellness', action: 'Daily checks are working', time: 'Phase 3', type: 'success' },
-                      { user: 'Upcoming', action: 'Coach dashboard improvements', time: 'Phase 5', type: 'info' },
+                      { user: 'Performance', action: 'Test recording now active', time: 'Phase 4', type: 'success' },
+                      { user: 'Upcoming', action: 'Advanced analytics & reports', time: 'Phase 7', type: 'info' },
                     ].map((activity, index) => (
                       <div key={index} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-brand-bg-dark/50 transition-colors">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
@@ -280,6 +435,21 @@ const Dashboard = ({ user, onLogout }) => {
                 <span className="font-medium">Record Test</span>
               </button>
             )}
+            
+            {/* Coach Injury Logging Button */}
+            {user?.role === 'coach' && (
+              <button
+                onClick={() => setShowInjuryForm(true)}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${
+                  showInjuryForm
+                    ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                    : 'text-red-400 hover:text-white hover:bg-red-500/20'
+                }`}
+              >
+                <span>🩹</span>
+                <span className="font-medium">Log Injury</span>
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -291,7 +461,7 @@ const Dashboard = ({ user, onLogout }) => {
         {/* Phase Progress */}
         <div className="mt-8 bg-brand-bg-light border border-brand-border rounded-2xl p-8">
           <h2 className="text-2xl font-bold text-white mb-6">Development Progress</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
               { 
                 phase: 'Phase 1', 
@@ -324,12 +494,19 @@ const Dashboard = ({ user, onLogout }) => {
               { 
                 phase: 'Phase 5', 
                 title: 'Coach Dashboard', 
+                status: 'Complete', 
+                items: ['✅ Team Overview', '✅ Flagging System', '✅ ACWR Calculator', '✅ Risk Assessment'], 
+                color: 'from-green-500 to-green-600'
+              },
+              { 
+                phase: 'Phase 6', 
+                title: 'Injury & Concussion', 
                 status: 'In Progress', 
-                items: ['✅ Team Overview', '✅ Flagging System', '🔄 ACWR Calculator', '🔄 Risk Assessment'], 
+                items: ['✓ Injury Logging', '✓ Concussion Protocol', '🔄 Recovery Tracking'], 
                 color: 'from-brand-cyan to-brand-cyan-dark' 
               },
             ].map((phase, index) => (
-              <div key={index} className={`bg-gradient-to-br ${phase.color} rounded-xl p-6`}>
+              <div key={index} className={`bg-gradient-to-br ${phase.color} rounded-xl p-6 hover:scale-[1.02] transition-transform`}>
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-sm font-semibold text-white/80">{phase.phase}</span>
                   <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
@@ -342,8 +519,8 @@ const Dashboard = ({ user, onLogout }) => {
                 <h4 className="text-xl font-bold text-white mb-4">{phase.title}</h4>
                 <ul className="space-y-2">
                   {phase.items.map((item, itemIndex) => (
-                    <li key={itemIndex} className="flex items-center text-white/90">
-                      <span className="mr-2">{item.startsWith('✓') ? '✓' : '○'}</span>
+                    <li key={itemIndex} className="flex items-center text-white/90 text-sm">
+                      <span className="mr-2">{item.startsWith('✓') ? '✓' : item.startsWith('✅') ? '✅' : '○'}</span>
                       {item}
                     </li>
                   ))}
@@ -355,18 +532,18 @@ const Dashboard = ({ user, onLogout }) => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <p className="text-sm font-medium text-white mb-2">Current Focus</p>
-                <p className="text-slate-400 text-sm">Performance Testing System</p>
-                <p className="text-xs text-slate-500 mt-1">Recording, tracking & analytics</p>
+                <p className="text-slate-400 text-sm">Injury & Concussion Management</p>
+                <p className="text-xs text-slate-500 mt-1">Logging, tracking & recovery protocols</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-white mb-2">Next Up: Phase 5</p>
-                <p className="text-slate-400 text-sm">Coach Dashboard & Flagging</p>
-                <p className="text-xs text-slate-500 mt-1">Risk assessment & alerts</p>
+                <p className="text-sm font-medium text-white mb-2">Next Up: Phase 7</p>
+                <p className="text-slate-400 text-sm">Advanced Analytics & Reports</p>
+                <p className="text-xs text-slate-500 mt-1">Custom reports & data export</p>
               </div>
               <div>
                 <p className="text-sm font-medium text-white mb-2">Coming Later</p>
-                <p className="text-slate-400 text-sm">Injury Logging & Reports</p>
-                <p className="text-xs text-slate-500 mt-1">Comprehensive tracking</p>
+                <p className="text-slate-400 text-sm">Mobile App & Notifications</p>
+                <p className="text-xs text-slate-500 mt-1">Push notifications & mobile access</p>
               </div>
             </div>
           </div>
@@ -386,13 +563,29 @@ const Dashboard = ({ user, onLogout }) => {
                 © {new Date().getFullYear()} Athens Sports SAAS.
               </div>
               <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                <span className="text-xs text-slate-500">Phase 4 Active</span>
+                <div className="w-2 h-2 bg-brand-cyan rounded-full animate-pulse"></div>
+                <span className="text-xs text-slate-500">Phase 6 Active</span>
               </div>
             </div>
           </div>
         </div>
       </footer>
+
+      {/* Injury Form Modal */}
+      {showInjuryForm && (
+        <div className="fixed inset-0 bg-black/70 flex items-start justify-center p-4 z-50 overflow-y-auto">
+          <div className="w-full max-w-4xl mt-8 mb-8">
+            <InjuryForm
+              user={user}
+              onSuccess={() => {
+                setShowInjuryForm(false);
+                loadOverviewStats(); // Refresh stats
+              }}
+              onClose={() => setShowInjuryForm(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

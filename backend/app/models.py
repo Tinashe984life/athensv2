@@ -289,23 +289,45 @@ class InjuryRecord(db.Model):
     
     id = db.Column(db.String(50), primary_key=True, default=lambda: str(uuid.uuid4()))
     athlete_id = db.Column(db.String(50), db.ForeignKey('athletes.id'), nullable=False)
-    injury_type = db.Column(db.String(100), nullable=False)  # 'muscle strain', 'ligament sprain', 'concussion', etc.
+    injury_type = db.Column(db.String(100), nullable=False)
     body_part = db.Column(db.String(100), nullable=False)
-    side = db.Column(db.String(10), nullable=True)  # 'left', 'right', 'both'
-    severity = db.Column(db.String(20), nullable=False)  # 'mild', 'moderate', 'severe'
+    side = db.Column(db.String(10), nullable=True)
+    severity = db.Column(db.String(20), nullable=False)
     date_reported = db.Column(db.Date, nullable=False, default=date.today)
     date_occurred = db.Column(db.Date, nullable=True)
-    mechanism = db.Column(db.Text, nullable=True)  # How it happened
+    mechanism = db.Column(db.Text, nullable=True)
     symptoms = db.Column(db.Text, nullable=True)
     diagnosis = db.Column(db.Text, nullable=True)
     treatment_plan = db.Column(db.Text, nullable=True)
-    estimated_recovery_time = db.Column(db.Integer, nullable=True)  # days
-    status = db.Column(db.String(20), nullable=False, default='active')  # 'active', 'recovered', 'chronic'
+    estimated_recovery_time = db.Column(db.Integer, nullable=True)
+    status = db.Column(db.String(20), nullable=False, default='active')
     clearance_date = db.Column(db.Date, nullable=True)
     clearance_notes = db.Column(db.Text, nullable=True)
     notes = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # CONCUSSION-SPECIFIC FIELDS
+    is_concussion = db.Column(db.Boolean, default=False)
+    loss_of_consciousness = db.Column(db.Boolean, default=False)
+    loc_duration = db.Column(db.Integer, nullable=True)  # seconds
+    post_traumatic_amnesia = db.Column(db.Boolean, default=False)
+    pta_duration = db.Column(db.Integer, nullable=True)  # minutes
+    mechanism_of_concussion = db.Column(db.String(100), nullable=True)
+    suspected_concussion = db.Column(db.Boolean, default=False)
+    referred_to_physician = db.Column(db.Boolean, default=False)
+    physician_name = db.Column(db.String(100), nullable=True)
+    physician_contact = db.Column(db.String(100), nullable=True)
+    
+    # Return-to-play protocol fields
+    rtp_protocol_started = db.Column(db.Boolean, default=False)
+    rtp_start_date = db.Column(db.Date, nullable=True)
+    rtp_stage = db.Column(db.Integer, nullable=True)  # 1-6 stages
+    rtp_stage_start_date = db.Column(db.Date, nullable=True)
+    rtp_completed_date = db.Column(db.Date, nullable=True)
+    rtp_medical_clearance = db.Column(db.Boolean, default=False)
+    rtp_medical_clearance_date = db.Column(db.Date, nullable=True)
+    rtp_medical_clearance_by = db.Column(db.String(100), nullable=True)
     
     def to_dict(self):
         return {
@@ -327,5 +349,141 @@ class InjuryRecord(db.Model):
             'clearance_notes': self.clearance_notes,
             'notes': self.notes,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            # Concussion-specific fields
+            'is_concussion': self.is_concussion,
+            'loss_of_consciousness': self.loss_of_consciousness,
+            'loc_duration': self.loc_duration,
+            'post_traumatic_amnesia': self.post_traumatic_amnesia,
+            'pta_duration': self.pta_duration,
+            'mechanism_of_concussion': self.mechanism_of_concussion,
+            'suspected_concussion': self.suspected_concussion,
+            'referred_to_physician': self.referred_to_physician,
+            'physician_name': self.physician_name,
+            'physician_contact': self.physician_contact,
+            'rtp_protocol_started': self.rtp_protocol_started,
+            'rtp_start_date': self.rtp_start_date.isoformat() if self.rtp_start_date else None,
+            'rtp_stage': self.rtp_stage,
+            'rtp_stage_start_date': self.rtp_stage_start_date.isoformat() if self.rtp_stage_start_date else None,
+            'rtp_completed_date': self.rtp_completed_date.isoformat() if self.rtp_completed_date else None,
+            'rtp_medical_clearance': self.rtp_medical_clearance,
+            'rtp_medical_clearance_date': self.rtp_medical_clearance_date.isoformat() if self.rtp_medical_clearance_date else None,
+            'rtp_medical_clearance_by': self.rtp_medical_clearance_by
+        }
+    
+class ConcussionSymptomScore(db.Model):
+    __tablename__ = 'concussion_symptom_scores'
+    
+    id = db.Column(db.String(50), primary_key=True, default=lambda: str(uuid.uuid4()))
+    injury_id = db.Column(db.String(50), db.ForeignKey('injury_records.id'), nullable=False)
+    assessment_date = db.Column(db.Date, nullable=False, default=date.today)
+    assessed_by = db.Column(db.String(100), nullable=True)
+    
+    # SCAT6 Symptom Evaluation (22 symptoms, 0-6 scale)
+    headache = db.Column(db.Integer, nullable=True)  # 0-6
+    pressure_in_head = db.Column(db.Integer, nullable=True)
+    neck_pain = db.Column(db.Integer, nullable=True)
+    nausea_vomiting = db.Column(db.Integer, nullable=True)
+    dizziness = db.Column(db.Integer, nullable=True)
+    blurred_vision = db.Column(db.Integer, nullable=True)
+    balance_problems = db.Column(db.Integer, nullable=True)
+    sensitivity_to_light = db.Column(db.Integer, nullable=True)
+    sensitivity_to_noise = db.Column(db.Integer, nullable=True)
+    feeling_slowed_down = db.Column(db.Integer, nullable=True)
+    feeling_mental_fog = db.Column(db.Integer, nullable=True)
+    difficulty_concentrating = db.Column(db.Integer, nullable=True)
+    difficulty_remembering = db.Column(db.Integer, nullable=True)
+    fatigue_low_energy = db.Column(db.Integer, nullable=True)
+    confusion = db.Column(db.Integer, nullable=True)
+    drowsiness = db.Column(db.Integer, nullable=True)
+    trouble_falling_asleep = db.Column(db.Integer, nullable=True)
+    more_emotional = db.Column(db.Integer, nullable=True)
+    irritability = db.Column(db.Integer, nullable=True)
+    sadness = db.Column(db.Integer, nullable=True)
+    nervous_anxious = db.Column(db.Integer, nullable=True)
+    feeling_like_in_a_fog = db.Column(db.Integer, nullable=True)
+    
+    # Total symptom severity score
+    total_symptom_score = db.Column(db.Integer, nullable=True)
+    
+    # Cognitive screening
+    orientation_score = db.Column(db.Integer, nullable=True)  # 0-5
+    immediate_memory_score = db.Column(db.Integer, nullable=True)  # 0-15
+    concentration_score = db.Column(db.Integer, nullable=True)  # 0-5
+    
+    # Balance assessment (BESS)
+    balance_score = db.Column(db.Integer, nullable=True)  # 0-30 (lower is better)
+    
+    # Tandem gait test
+    tandem_gait_time = db.Column(db.Float, nullable=True)  # seconds
+    
+    # Clinical notes
+    clinical_notes = db.Column(db.Text, nullable=True)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationship
+    injury = db.relationship('InjuryRecord', backref='symptom_scores', lazy=True)
+    
+    def calculate_total_score(self):
+        """Calculate total symptom severity score"""
+        symptoms = [
+            self.headache, self.pressure_in_head, self.neck_pain,
+            self.nausea_vomiting, self.dizziness, self.blurred_vision,
+            self.balance_problems, self.sensitivity_to_light,
+            self.sensitivity_to_noise, self.feeling_slowed_down,
+            self.feeling_mental_fog, self.difficulty_concentrating,
+            self.difficulty_remembering, self.fatigue_low_energy,
+            self.confusion, self.drowsiness, self.trouble_falling_asleep,
+            self.more_emotional, self.irritability, self.sadness,
+            self.nervous_anxious, self.feeling_like_in_a_fog
+        ]
+        
+        valid_scores = [s for s in symptoms if s is not None]
+        return sum(valid_scores) if valid_scores else 0
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'injury_id': self.injury_id,
+            'assessment_date': self.assessment_date.isoformat() if self.assessment_date else None,
+            'assessed_by': self.assessed_by,
+            
+            # Symptom scores
+            'headache': self.headache,
+            'pressure_in_head': self.pressure_in_head,
+            'neck_pain': self.neck_pain,
+            'nausea_vomiting': self.nausea_vomiting,
+            'dizziness': self.dizziness,
+            'blurred_vision': self.blurred_vision,
+            'balance_problems': self.balance_problems,
+            'sensitivity_to_light': self.sensitivity_to_light,
+            'sensitivity_to_noise': self.sensitivity_to_noise,
+            'feeling_slowed_down': self.feeling_slowed_down,
+            'feeling_mental_fog': self.feeling_mental_fog,
+            'difficulty_concentrating': self.difficulty_concentrating,
+            'difficulty_remembering': self.difficulty_remembering,
+            'fatigue_low_energy': self.fatigue_low_energy,
+            'confusion': self.confusion,
+            'drowsiness': self.drowsiness,
+            'trouble_falling_asleep': self.trouble_falling_asleep,
+            'more_emotional': self.more_emotional,
+            'irritability': self.irritability,
+            'sadness': self.sadness,
+            'nervous_anxious': self.nervous_anxious,
+            'feeling_like_in_a_fog': self.feeling_like_in_a_fog,
+            
+            'total_symptom_score': self.total_symptom_score or self.calculate_total_score(),
+            
+            # Cognitive scores
+            'orientation_score': self.orientation_score,
+            'immediate_memory_score': self.immediate_memory_score,
+            'concentration_score': self.concentration_score,
+            
+            # Balance and gait
+            'balance_score': self.balance_score,
+            'tandem_gait_time': self.tandem_gait_time,
+            
+            'clinical_notes': self.clinical_notes,
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }

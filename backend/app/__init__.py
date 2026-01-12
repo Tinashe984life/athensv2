@@ -36,6 +36,8 @@ def create_app():
     from app.routes.wellness import bp as wellness_bp
     from app.routes.performance import bp as performance_bp 
     from app.routes.dashboard import bp as dashboard_bp
+    from app.routes.injuries import bp as injuries_bp
+    from app.routes.concussion import bp as concussion_bp
     
     app.register_blueprint(health_bp)
     app.register_blueprint(auth_bp)
@@ -44,5 +46,7 @@ def create_app():
     app.register_blueprint(wellness_bp)
     app.register_blueprint(performance_bp)
     app.register_blueprint(dashboard_bp)
+    app.register_blueprint(injuries_bp)
+    app.register_blueprint(concussion_bp)
     
     return app
