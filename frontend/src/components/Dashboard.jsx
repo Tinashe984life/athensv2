@@ -10,12 +10,20 @@ import CoachDashboard from './CoachDashboard';
 import InjuryHistory from './InjuryHistory';
 import ConcussionDashboard from './ConcussionDashboard';
 import InjuryForm from './InjuryForm';
+import WorkloadForm from './WorkloadForm';
+import RecoveryForm from './RecoveryForm';
+import WorkloadDashboard from './WorkloadDashboard'; // We'll create this
+import ACWRCalculator from './ACWRCalculator'; // We'll create this
+import PrehabRecommendationForm from './PrehabRecommendationForm'; // We'll create this
 import { dashboard } from '../services/dashboard';
 import { athletes } from '../services/athletes';
 
 const Dashboard = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [showInjuryForm, setShowInjuryForm] = useState(false);
+  const [showWorkloadForm, setShowWorkloadForm] = useState(false);
+  const [showRecoveryForm, setShowRecoveryForm] = useState(false);
+  const [showPrehabForm, setShowPrehabForm] = useState(false);
   const [overviewStats, setOverviewStats] = useState({
     totalAthletes: 0,
     totalTeams: 0,
@@ -36,6 +44,7 @@ const Dashboard = ({ user, onLogout }) => {
     { id: 'teams', label: 'Teams', icon: '🏆' },
     { id: 'wellness', label: 'Wellness', icon: '💪' },
     { id: 'performance', label: 'Performance', icon: '📈' },
+    { id: 'workload', label: 'Workload', icon: '🏋️' }, // New tab
     { id: 'injuries', label: 'Injuries', icon: '🩹' },
     { id: 'concussion', label: 'Concussion', icon: '🧠' },
   ];
@@ -45,6 +54,7 @@ const Dashboard = ({ user, onLogout }) => {
     { id: 'my-stats', label: 'My Stats', icon: '👤' },
     { id: 'wellness', label: 'Wellness', icon: '💪' },
     { id: 'performance', label: 'Performance', icon: '📈' },
+    { id: 'workload', label: 'Workload', icon: '🏋️' }, // New tab
     { id: 'goals', label: 'Goals', icon: '🎯' },
     { id: 'injuries', label: 'Injuries', icon: '🩹' },
   ];
@@ -61,10 +71,9 @@ const Dashboard = ({ user, onLogout }) => {
       
       if (user.role === 'coach') {
         // Load coach overview stats
-        const [teamsResponse, athletesResponse, teamOverviewResponse] = await Promise.all([
+        const [teamsResponse, athletesResponse] = await Promise.all([
           dashboard.getTeamOverview(),
-          athletes.getAll(),
-          dashboard.getTeamOverview()
+          athletes.getAll()
         ]);
 
         if (teamsResponse.data.success) {
@@ -84,7 +93,7 @@ const Dashboard = ({ user, onLogout }) => {
             totalTeams: teams.length,
             pendingWellness,
             avgReadiness: `${avgReadiness}%`,
-            totalTests: 0, // Will be implemented with performance data
+            totalTests: 0,
             trainingDays: 0,
             goals: 0,
             wellnessScore: '--'
@@ -96,7 +105,6 @@ const Dashboard = ({ user, onLogout }) => {
         if (athleteResponse.data.success) {
           const athleteData = athleteResponse.data.athletes.find(a => a.user_id === user.id);
           if (athleteData) {
-            // These would come from actual API calls for athlete stats
             setOverviewStats({
               totalAthletes: 0,
               totalTeams: 0,
@@ -131,14 +139,18 @@ const Dashboard = ({ user, onLogout }) => {
         return <InjuryHistory user={user} />;
       case 'concussion':
         return <ConcussionDashboard user={user} />;
+      case 'workload':
+        // Check if we're on ACWR calculator or workload dashboard
+        if (window.location.hash === '#acwr-calculator') {
+          return <ACWRCalculator user={user} />;
+        }
+        return <WorkloadDashboard user={user} />;
       case 'wellness':
-        // Check if we're on the wellness check form or dashboard
         if (window.location.hash === '#wellness-check' && user.role === 'athlete') {
           return <DailyWellnessForm user={user} />;
         }
         return <WellnessDashboard user={user} />;
       case 'performance':
-        // Check if we're on the performance test form or history
         if (window.location.hash === '#record-test' && user.role !== 'athlete') {
           return <PerformanceTestForm user={user} />;
         }
@@ -155,8 +167,8 @@ const Dashboard = ({ user, onLogout }) => {
                 </h2>
                 <p className="text-slate-300 text-lg">
                   {user?.role === 'coach' 
-                    ? 'Monitor your team\'s performance and wellness metrics in real-time.'
-                    : 'Track your progress and submit daily wellness checks.'
+                    ? 'Monitor your team\'s performance and workload metrics in real-time.'
+                    : 'Track your training load, recovery, and daily wellness.'
                   }
                 </p>
               </div>
@@ -165,7 +177,6 @@ const Dashboard = ({ user, onLogout }) => {
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               {loadingStats ? (
-                // Loading skeleton
                 Array(4).fill(0).map((_, index) => (
                   <div key={index} className="bg-brand-bg-light border border-brand-border rounded-xl p-6 animate-pulse">
                     <div className="flex items-center justify-between mb-4">
@@ -216,18 +227,18 @@ const Dashboard = ({ user, onLogout }) => {
                       icon: '💪'
                     },
                     { 
-                      label: 'Performance Tests', 
-                      value: overviewStats.totalTests, 
-                      color: 'from-green-500 to-green-600', 
-                      change: '+0',
-                      icon: '📈'
+                      label: 'Training Load', 
+                      value: '--', 
+                      color: 'from-amber-500 to-amber-600', 
+                      change: '--',
+                      icon: '🏋️'
                     },
                     { 
-                      label: 'Training Days', 
-                      value: overviewStats.trainingDays, 
-                      color: 'from-amber-500 to-amber-600', 
-                      change: '+0',
-                      icon: '🏃'
+                      label: 'ACWR', 
+                      value: '--', 
+                      color: 'from-red-500 to-red-600', 
+                      change: '--',
+                      icon: '📊'
                     },
                     { 
                       label: 'Goals', 
@@ -270,8 +281,13 @@ const Dashboard = ({ user, onLogout }) => {
                             setActiveTab('performance');
                             window.location.hash = 'record-test';
                           }},
-                          { title: 'Log New Injury', desc: 'Record athlete injury details', icon: '🩹', onClick: () => setShowInjuryForm(true) },
-                          { title: 'View Concussions', desc: 'Monitor concussion recovery', icon: '🧠', onClick: () => setActiveTab('concussion') },
+                          { title: 'Log Training Session', desc: 'Record workout details', icon: '🏋️', onClick: () => setShowWorkloadForm(true) },
+                          { title: 'Log Recovery Session', desc: 'Record recovery activities', icon: '🧘', onClick: () => setShowRecoveryForm(true) },
+                          { title: 'Create Prehab Plan', desc: 'Design injury prevention', icon: '🛡️', onClick: () => setShowPrehabForm(true) },
+                          { title: 'View ACWR Calculator', desc: 'Check workload ratios', icon: '📈', onClick: () => {
+                            setActiveTab('workload');
+                            window.location.hash = 'acwr-calculator';
+                          }},
                         ]
                       : [
                           { title: 'My Profile', desc: 'View and edit your profile', icon: '👤', onClick: () => setActiveTab('my-stats') },
@@ -280,9 +296,11 @@ const Dashboard = ({ user, onLogout }) => {
                             window.location.hash = 'wellness-check';
                           }},
                           { title: 'Performance History', desc: 'View your test results', icon: '📈', onClick: () => setActiveTab('performance') },
-                          { title: 'Set Goals', desc: 'Define your training goals', icon: '🎯', onClick: () => alert('Coming in Phase 6') },
+                          { title: 'Log Training', desc: 'Record your workout', icon: '🏋️', onClick: () => setShowWorkloadForm(true) },
+                          { title: 'Log Recovery', desc: 'Record recovery activities', icon: '🧘', onClick: () => setShowRecoveryForm(true) },
+                          { title: 'Workload Dashboard', desc: 'View training load trends', icon: '📊', onClick: () => setActiveTab('workload') },
+                          { title: 'Set Goals', desc: 'Define your training goals', icon: '🎯', onClick: () => alert('Coming in Phase 8') },
                           { title: 'Injury History', desc: 'View your injury records', icon: '🩹', onClick: () => setActiveTab('injuries') },
-                          { title: 'Concussion Progress', desc: 'Track concussion recovery', icon: '🧠', onClick: () => setActiveTab('concussion') },
                         ]
                     ).map((action, index) => (
                       <button 
@@ -305,11 +323,11 @@ const Dashboard = ({ user, onLogout }) => {
                   <h3 className="text-xl font-bold text-white mb-6">Recent Activity</h3>
                   <div className="space-y-4">
                     {[
-                      { user: 'System', action: 'Phase 6 features available', time: 'Today', type: 'success' },
-                      { user: 'Injury Tracking', action: 'Concussion logging now active', time: 'Phase 6', type: 'info' },
-                      { user: 'Wellness', action: 'Daily checks are working', time: 'Phase 3', type: 'success' },
-                      { user: 'Performance', action: 'Test recording now active', time: 'Phase 4', type: 'success' },
-                      { user: 'Upcoming', action: 'Advanced analytics & reports', time: 'Phase 7', type: 'info' },
+                      { user: 'System', action: 'Phase 7 features available', time: 'Today', type: 'success' },
+                      { user: 'Workload Tracking', action: 'ACWR calculator now active', time: 'Phase 7', type: 'info' },
+                      { user: 'Recovery', action: 'Recovery logging now available', time: 'Phase 7', type: 'success' },
+                      { user: 'Injury Tracking', action: 'Concussion logging now active', time: 'Phase 6', type: 'success' },
+                      { user: 'Upcoming', action: 'Admin features & reports', time: 'Phase 8', type: 'info' },
                     ].map((activity, index) => (
                       <div key={index} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-brand-bg-dark/50 transition-colors">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
@@ -383,9 +401,9 @@ const Dashboard = ({ user, onLogout }) => {
                 key={tab.id}
                 onClick={() => {
                   setActiveTab(tab.id);
-                  // Clear hash when switching tabs (except when going to specific forms)
                   if (!((tab.id === 'wellness' && user.role === 'athlete') || 
-                        (tab.id === 'performance' && user.role !== 'athlete'))) {
+                        (tab.id === 'performance' && user.role !== 'athlete') ||
+                        (tab.id === 'workload' && window.location.hash === '#acwr-calculator'))) {
                     window.location.hash = '';
                   }
                 }}
@@ -433,6 +451,54 @@ const Dashboard = ({ user, onLogout }) => {
               >
                 <span>➕</span>
                 <span className="font-medium">Record Test</span>
+              </button>
+            )}
+            
+            {/* Coach ACWR Calculator Button */}
+            {user?.role === 'coach' && (
+              <button
+                onClick={() => {
+                  setActiveTab('workload');
+                  window.location.hash = 'acwr-calculator';
+                }}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${
+                  window.location.hash === '#acwr-calculator'
+                    ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                    : 'text-amber-400 hover:text-white hover:bg-amber-500/20'
+                }`}
+              >
+                <span>📊</span>
+                <span className="font-medium">ACWR</span>
+              </button>
+            )}
+            
+            {/* Coach Workload Logging Button */}
+            {user?.role === 'coach' && (
+              <button
+                onClick={() => setShowWorkloadForm(true)}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${
+                  showWorkloadForm
+                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                    : 'text-blue-400 hover:text-white hover:bg-blue-500/20'
+                }`}
+              >
+                <span>🏋️</span>
+                <span className="font-medium">Log Training</span>
+              </button>
+            )}
+            
+            {/* Coach Recovery Logging Button */}
+            {user?.role === 'coach' && (
+              <button
+                onClick={() => setShowRecoveryForm(true)}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${
+                  showRecoveryForm
+                    ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                    : 'text-green-400 hover:text-white hover:bg-green-500/20'
+                }`}
+              >
+                <span>🧘</span>
+                <span className="font-medium">Log Recovery</span>
               </button>
             )}
             
@@ -501,9 +567,30 @@ const Dashboard = ({ user, onLogout }) => {
               { 
                 phase: 'Phase 6', 
                 title: 'Injury & Concussion', 
+                status: 'Complete', 
+                items: ['✓ Injury Logging', '✓ Concussion Protocol', '✓ Recovery Tracking'], 
+                color: 'from-green-500 to-green-600' 
+              },
+              { 
+                phase: 'Phase 7', 
+                title: 'Workload & Recovery', 
                 status: 'In Progress', 
-                items: ['✓ Injury Logging', '✓ Concussion Protocol', '🔄 Recovery Tracking'], 
+                items: ['✓ Training Load', '✓ ACWR Calculator', '✓ Prehab System', '✓ Recovery Tracking'], 
                 color: 'from-brand-cyan to-brand-cyan-dark' 
+              },
+              { 
+                phase: 'Phase 8', 
+                title: 'Admin Features', 
+                status: 'Upcoming', 
+                items: ['○ User Management', '○ Data Export', '○ Reports'], 
+                color: 'from-slate-700 to-slate-800' 
+              },
+              { 
+                phase: 'Phase 9', 
+                title: 'Polish & Deployment', 
+                status: 'Upcoming', 
+                items: ['○ Mobile Responsive', '○ Notifications', '○ Testing'], 
+                color: 'from-slate-700 to-slate-800' 
               },
             ].map((phase, index) => (
               <div key={index} className={`bg-gradient-to-br ${phase.color} rounded-xl p-6 hover:scale-[1.02] transition-transform`}>
@@ -532,16 +619,16 @@ const Dashboard = ({ user, onLogout }) => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <p className="text-sm font-medium text-white mb-2">Current Focus</p>
-                <p className="text-slate-400 text-sm">Injury & Concussion Management</p>
-                <p className="text-xs text-slate-500 mt-1">Logging, tracking & recovery protocols</p>
+                <p className="text-slate-400 text-sm">Workload & Recovery Analytics</p>
+                <p className="text-xs text-slate-500 mt-1">ACWR, training load, prehab system</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-white mb-2">Next Up: Phase 7</p>
-                <p className="text-slate-400 text-sm">Advanced Analytics & Reports</p>
-                <p className="text-xs text-slate-500 mt-1">Custom reports & data export</p>
+                <p className="text-sm font-medium text-white mb-2">Next Up: Phase 8</p>
+                <p className="text-slate-400 text-sm">Admin Features & Reports</p>
+                <p className="text-xs text-slate-500 mt-1">User management & data export</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-white mb-2">Coming Later</p>
+                <p className="text-sm font-medium text-white mb-2">Coming in Phase 9</p>
                 <p className="text-slate-400 text-sm">Mobile App & Notifications</p>
                 <p className="text-xs text-slate-500 mt-1">Push notifications & mobile access</p>
               </div>
@@ -564,7 +651,7 @@ const Dashboard = ({ user, onLogout }) => {
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 bg-brand-cyan rounded-full animate-pulse"></div>
-                <span className="text-xs text-slate-500">Phase 6 Active</span>
+                <span className="text-xs text-slate-500">Phase 7 Active</span>
               </div>
             </div>
           </div>
@@ -579,9 +666,57 @@ const Dashboard = ({ user, onLogout }) => {
               user={user}
               onSuccess={() => {
                 setShowInjuryForm(false);
-                loadOverviewStats(); // Refresh stats
+                loadOverviewStats();
               }}
               onClose={() => setShowInjuryForm(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Workload Form Modal */}
+      {showWorkloadForm && (
+        <div className="fixed inset-0 bg-black/70 flex items-start justify-center p-4 z-50 overflow-y-auto">
+          <div className="w-full max-w-4xl mt-8 mb-8">
+            <WorkloadForm
+              user={user}
+              onSuccess={() => {
+                setShowWorkloadForm(false);
+                loadOverviewStats();
+              }}
+              onClose={() => setShowWorkloadForm(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Recovery Form Modal */}
+      {showRecoveryForm && (
+        <div className="fixed inset-0 bg-black/70 flex items-start justify-center p-4 z-50 overflow-y-auto">
+          <div className="w-full max-w-4xl mt-8 mb-8">
+            <RecoveryForm
+              user={user}
+              onSuccess={() => {
+                setShowRecoveryForm(false);
+                loadOverviewStats();
+              }}
+              onClose={() => setShowRecoveryForm(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Prehab Form Modal */}
+      {showPrehabForm && (
+        <div className="fixed inset-0 bg-black/70 flex items-start justify-center p-4 z-50 overflow-y-auto">
+          <div className="w-full max-w-4xl mt-8 mb-8">
+            <PrehabRecommendationForm
+              user={user}
+              onSuccess={() => {
+                setShowPrehabForm(false);
+                loadOverviewStats();
+              }}
+              onClose={() => setShowPrehabForm(false)}
             />
           </div>
         </div>

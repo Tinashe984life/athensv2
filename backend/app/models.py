@@ -487,3 +487,201 @@ class ConcussionSymptomScore(db.Model):
             'clinical_notes': self.clinical_notes,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
+    
+class WorkloadSession(db.Model):
+    __tablename__ = 'workload_sessions'
+    
+    id = db.Column(db.String(50), primary_key=True, default=lambda: str(uuid.uuid4()))
+    athlete_id = db.Column(db.String(50), db.ForeignKey('athletes.id'), nullable=False)
+    date = db.Column(db.Date, nullable=False, default=date.today)
+    
+    # Session details
+    session_type = db.Column(db.String(50), nullable=False)  # 'training', 'match', 'recovery'
+    session_name = db.Column(db.String(100), nullable=True)
+    duration_minutes = db.Column(db.Integer, nullable=False)
+    perceived_exertion = db.Column(db.Integer, nullable=False)  # RPE 1-10
+    workload_score = db.Column(db.Float, nullable=True)  # RPE * Duration
+    
+    # Session metrics (optional)
+    distance_km = db.Column(db.Float, nullable=True)
+    average_hr = db.Column(db.Float, nullable=True)  # average heart rate
+    max_hr = db.Column(db.Float, nullable=True)
+    sprints_count = db.Column(db.Integer, nullable=True)
+    high_intensity_distance = db.Column(db.Float, nullable=True)
+    
+    # Wellness after session
+    fatigue_level = db.Column(db.Integer, nullable=True)  # 1-5
+    muscle_soreness_post = db.Column(db.Integer, nullable=True)  # 1-5
+    motivation_post = db.Column(db.Integer, nullable=True)  # 1-5
+    
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    athlete = db.relationship('Athlete', backref='workload_sessions', lazy=True)
+    
+    def calculate_workload_score(self):
+        """Calculate workload as RPE * Duration"""
+        if self.perceived_exertion and self.duration_minutes:
+            return self.perceived_exertion * self.duration_minutes
+        return None
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'athlete_id': self.athlete_id,
+            'date': self.date.isoformat() if self.date else None,
+            'session_type': self.session_type,
+            'session_name': self.session_name,
+            'duration_minutes': self.duration_minutes,
+            'perceived_exertion': self.perceived_exertion,
+            'workload_score': self.workload_score or self.calculate_workload_score(),
+            'distance_km': self.distance_km,
+            'average_hr': self.average_hr,
+            'max_hr': self.max_hr,
+            'sprints_count': self.sprints_count,
+            'high_intensity_distance': self.high_intensity_distance,
+            'fatigue_level': self.fatigue_level,
+            'muscle_soreness_post': self.muscle_soreness_post,
+            'motivation_post': self.motivation_post,
+            'notes': self.notes,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'athlete_name': f"{self.athlete.user.name} {self.athlete.user.surname}" if self.athlete and self.athlete.user else None
+        }
+
+
+class RecoverySession(db.Model):
+    __tablename__ = 'recovery_sessions'
+    
+    id = db.Column(db.String(50), primary_key=True, default=lambda: str(uuid.uuid4()))
+    athlete_id = db.Column(db.String(50), db.ForeignKey('athletes.id'), nullable=False)
+    date = db.Column(db.Date, nullable=False, default=date.today)
+    
+    # Recovery activity details
+    recovery_type = db.Column(db.String(50), nullable=False)  # 'active', 'passive', 'prehab'
+    session_name = db.Column(db.String(100), nullable=True)
+    duration_minutes = db.Column(db.Integer, nullable=False)
+    
+    # Recovery modalities
+    stretching = db.Column(db.Boolean, default=False)
+    foam_rolling = db.Column(db.Boolean, default=False)
+    massage = db.Column(db.Boolean, default=False)
+    ice_bath = db.Column(db.Boolean, default=False)
+    compression = db.Column(db.Boolean, default=False)
+    sleep_quality = db.Column(db.Integer, nullable=True)  # 1-5
+    nutrition_quality = db.Column(db.Integer, nullable=True)  # 1-5
+    hydration_status = db.Column(db.Integer, nullable=True)  # 1-5
+    
+    # Prehab exercises (JSON string for multiple exercises)
+    prehab_exercises = db.Column(db.Text, nullable=True)  # JSON string
+    
+    # Recovery effectiveness
+    perceived_recovery = db.Column(db.Integer, nullable=True)  # 1-10
+    readiness_improvement = db.Column(db.Integer, nullable=True)  # 1-5
+    
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    athlete = db.relationship('Athlete', backref='recovery_sessions', lazy=True)
+    
+    def to_dict(self):
+        import json
+        prehab_exercises = []
+        if self.prehab_exercises:
+            try:
+                prehab_exercises = json.loads(self.prehab_exercises)
+            except:
+                prehab_exercises = []
+        
+        return {
+            'id': self.id,
+            'athlete_id': self.athlete_id,
+            'date': self.date.isoformat() if self.date else None,
+            'recovery_type': self.recovery_type,
+            'session_name': self.session_name,
+            'duration_minutes': self.duration_minutes,
+            'stretching': self.stretching,
+            'foam_rolling': self.foam_rolling,
+            'massage': self.massage,
+            'ice_bath': self.ice_bath,
+            'compression': self.compression,
+            'sleep_quality': self.sleep_quality,
+            'nutrition_quality': self.nutrition_quality,
+            'hydration_status': self.hydration_status,
+            'prehab_exercises': prehab_exercises,
+            'perceived_recovery': self.perceived_recovery,
+            'readiness_improvement': self.readiness_improvement,
+            'notes': self.notes,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'athlete_name': f"{self.athlete.user.name} {self.athlete.user.surname}" if self.athlete and self.athlete.user else None
+        }
+
+
+class PrehabRecommendation(db.Model):
+    __tablename__ = 'prehab_recommendations'
+    
+    id = db.Column(db.String(50), primary_key=True, default=lambda: str(uuid.uuid4()))
+    athlete_id = db.Column(db.String(50), db.ForeignKey('athletes.id'), nullable=False)
+    created_by = db.Column(db.String(50), db.ForeignKey('users.id'), nullable=True)
+    
+    # Recommendation details
+    recommendation_date = db.Column(db.Date, nullable=False, default=date.today)
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date, nullable=True)
+    
+    # Recommendation type and focus
+    recommendation_type = db.Column(db.String(50), nullable=False)  # 'injury_prevention', 'performance', 'recovery'
+    body_parts = db.Column(db.String(200), nullable=True)  # comma-separated
+    focus_area = db.Column(db.String(100), nullable=True)  # 'strength', 'mobility', 'stability', 'endurance'
+    
+    # Exercises (JSON string for multiple exercises with sets/reps)
+    exercises = db.Column(db.Text, nullable=False)
+    
+    # Frequency and duration
+    frequency_per_week = db.Column(db.Integer, nullable=True)
+    estimated_duration_minutes = db.Column(db.Integer, nullable=True)
+    
+    # Status
+    status = db.Column(db.String(20), nullable=False, default='active')  # 'active', 'completed', 'suspended'
+    compliance_rate = db.Column(db.Float, nullable=True)  # 0-100%
+    
+    # Tracking
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    athlete = db.relationship('Athlete', backref='prehab_recommendations', lazy=True)
+    creator = db.relationship('User', backref='created_recommendations', lazy=True)
+    
+    def to_dict(self):
+        import json
+        exercises = []
+        if self.exercises:
+            try:
+                exercises = json.loads(self.exercises)
+            except:
+                exercises = []
+        
+        return {
+            'id': self.id,
+            'athlete_id': self.athlete_id,
+            'created_by': self.created_by,
+            'recommendation_date': self.recommendation_date.isoformat() if self.recommendation_date else None,
+            'start_date': self.start_date.isoformat() if self.start_date else None,
+            'end_date': self.end_date.isoformat() if self.end_date else None,
+            'recommendation_type': self.recommendation_type,
+            'body_parts': self.body_parts.split(',') if self.body_parts else [],
+            'focus_area': self.focus_area,
+            'exercises': exercises,
+            'frequency_per_week': self.frequency_per_week,
+            'estimated_duration_minutes': self.estimated_duration_minutes,
+            'status': self.status,
+            'compliance_rate': self.compliance_rate,
+            'notes': self.notes,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'athlete_name': f"{self.athlete.user.name} {self.athlete.user.surname}" if self.athlete and self.athlete.user else None,
+            'created_by_name': f"{self.creator.name} {self.creator.surname}" if self.creator else None
+        }

@@ -771,3 +771,39 @@ def generate_workload_recommendations(acwr, monotony, acute_load, chronic_load):
         })
     
     return recommendations
+
+@bp.route('/notifications', methods=['GET'])
+@jwt_required()
+def get_notifications():
+    """Get notifications for the current user"""
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    
+    notifications = []
+    
+    if current_user.role == 'coach':
+        from app.services.notifications import get_coach_notifications
+        notifications = get_coach_notifications(current_user.id)
+    elif current_user.role == 'athlete':
+        # Athlete-specific notifications (e.g., pending wellness check)
+        athlete = Athlete.query.filter_by(user_id=current_user.id).first()
+        if athlete:
+            # Check for missing wellness entries
+            today = date.today()
+            wellness_entry = WellnessEntry.query.filter_by(
+                athlete_id=athlete.id,
+                date=today
+            ).first()
+            
+            if not wellness_entry:
+                notifications.append({
+                    'type': 'wellness_check',
+                    'message': 'Daily wellness check pending',
+                    'priority': 'medium',
+                    'date': today.isoformat()
+                })
+    
+    return jsonify({
+        'success': True,
+        'notifications': notifications
+    })
