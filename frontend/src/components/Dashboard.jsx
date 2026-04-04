@@ -335,7 +335,7 @@ const Dashboard = ({ user, onLogout }) => {
                       { user: 'Workload Tracking', action: 'ACWR calculator now active', time: 'Phase 7', type: 'info' },
                       { user: 'Recovery', action: 'Recovery logging now available', time: 'Phase 7', type: 'success' },
                       { user: 'Injury Tracking', action: 'Concussion logging now active', time: 'Phase 6', type: 'success' },
-                      { user: 'Upcoming', action: 'Admin features & reports', time: 'Phase 8', type: 'info' },
+                      { user: 'Admin', action: 'Admin features, reports, and export are live', time: 'Phase 8', type: 'info' },
                     ].map((activity, index) => (
                       <div key={index} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-brand-bg-dark/50 transition-colors">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
@@ -582,16 +582,16 @@ const Dashboard = ({ user, onLogout }) => {
               { 
                 phase: 'Phase 7', 
                 title: 'Workload & Recovery', 
-                status: 'In Progress', 
+                status: 'Complete', 
                 items: ['✓ Training Load', '✓ ACWR Calculator', '✓ Prehab System', '✓ Recovery Tracking'], 
-                color: 'from-brand-cyan to-brand-cyan-dark' 
+                color: 'from-green-500 to-green-600' 
               },
               { 
                 phase: 'Phase 8', 
                 title: 'Admin Features', 
-                status: 'Upcoming', 
-                items: ['○ User Management', '○ Data Export', '○ Reports'], 
-                color: 'from-slate-700 to-slate-800' 
+                status: 'In Progress', 
+                items: ['✓ User Management', '✓ Reports', '✓ Data Export', '○ Advanced Permissions'], 
+                color: 'from-brand-cyan to-brand-cyan-dark' 
               },
               { 
                 phase: 'Phase 9', 
@@ -627,13 +627,13 @@ const Dashboard = ({ user, onLogout }) => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <p className="text-sm font-medium text-white mb-2">Current Focus</p>
-                <p className="text-slate-400 text-sm">Workload & Recovery Analytics</p>
-                <p className="text-xs text-slate-500 mt-1">ACWR, training load, prehab system</p>
+                <p className="text-slate-400 text-sm">Admin Features & Reports</p>
+                <p className="text-xs text-slate-500 mt-1">User management, reporting, and data export</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-white mb-2">Next Up: Phase 8</p>
-                <p className="text-slate-400 text-sm">Admin Features & Reports</p>
-                <p className="text-xs text-slate-500 mt-1">User management & data export</p>
+                <p className="text-sm font-medium text-white mb-2">Next Up: Phase 9</p>
+                <p className="text-slate-400 text-sm">Polish & Deployment</p>
+                <p className="text-xs text-slate-500 mt-1">Mobile responsive UI, notifications, final QA</p>
               </div>
               <div>
                 <p className="text-sm font-medium text-white mb-2">Coming in Phase 9</p>
@@ -659,7 +659,7 @@ const Dashboard = ({ user, onLogout }) => {
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 bg-brand-cyan rounded-full animate-pulse"></div>
-                <span className="text-xs text-slate-500">Phase 7 Active</span>
+                <span className="text-xs text-slate-500">Phase 8 In Progress</span>
               </div>
             </div>
           </div>
