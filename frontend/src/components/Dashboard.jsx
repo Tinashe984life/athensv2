@@ -15,6 +15,7 @@ import RecoveryForm from './RecoveryForm';
 import WorkloadDashboard from './WorkloadDashboard'; // We'll create this
 import ACWRCalculator from './ACWRCalculator'; // We'll create this
 import PrehabRecommendationForm from './PrehabRecommendationForm'; // We'll create this
+import AdminPanel from './AdminPanel';
 import { dashboard } from '../services/dashboard';
 import { athletes } from '../services/athletes';
 
@@ -59,7 +60,12 @@ const Dashboard = ({ user, onLogout }) => {
     { id: 'injuries', label: 'Injuries', icon: '🩹' },
   ];
   
-  const tabs = user?.role === 'coach' ? coachTabs : athleteTabs;
+  const adminTabs = [
+    ...coachTabs,
+    { id: 'admin', label: 'Admin', icon: '🛠️' }
+  ];
+
+  const tabs = user?.role === 'admin' ? adminTabs : user?.role === 'coach' ? coachTabs : athleteTabs;
 
   useEffect(() => {
     loadOverviewStats();
@@ -145,6 +151,8 @@ const Dashboard = ({ user, onLogout }) => {
           return <ACWRCalculator user={user} />;
         }
         return <WorkloadDashboard user={user} />;
+      case 'admin':
+        return <AdminPanel user={user} />;
       case 'wellness':
         if (window.location.hash === '#wellness-check' && user.role === 'athlete') {
           return <DailyWellnessForm user={user} />;

@@ -164,3 +164,30 @@ def update_team(team_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@bp.route('/<team_id>', methods=['DELETE'])
+@jwt_required()
+def delete_team(team_id):
+    """Delete a team (admin only)"""
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        if user.role != 'admin':
+            return jsonify({'success': False, 'message': 'Only admins can delete teams'}), 403
+
+        team = Team.query.get(team_id)
+        if not team:
+            return jsonify({'success': False, 'message': 'Team not found'}), 404
+
+        athletes = Athlete.query.filter_by(team_id=team.id).all()
+        if athletes:
+            return jsonify({'success': False, 'message': 'Remove or reassign team athletes before deleting this team'}), 400
+
+        db.session.delete(team)
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': 'Team deleted successfully'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500

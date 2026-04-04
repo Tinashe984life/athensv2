@@ -11,11 +11,35 @@ def seed_database():
     with app.app_context():
         print("🚀 Starting database seeding...")
         
+        def ensure_admin_account(username, email, password, name, surname):
+            admin_user = User.query.filter_by(username=username).first()
+            if admin_user:
+                print(f"ℹ️  Admin user already exists: {username}")
+                return admin_user
+            user_id = str(uuid.uuid4())
+            admin_user = User(
+                id=user_id,
+                username=username,
+                name=name,
+                surname=surname,
+                role='admin',
+                email=email
+            )
+            admin_user.set_password(password)
+            db.session.add(admin_user)
+            print(f"✅ Admin user created: {username} / {password}")
+            return admin_user
+
         # Check if data already exists to avoid duplicates
         existing_users = User.query.count()
         if existing_users > 0:
-            print("⚠️  Database already has data. Skipping user/team creation...")
-            print("📅 Adding today's wellness checks and concussion data...")
+            print("⚠️  Database already has data. Ensuring admin accounts exist...")
+            ensure_admin_account('admin', 'admin@athens.sports', 'admin123', 'System', 'Administrator')
+            ensure_admin_account('admin2', 'admin2@athens.sports', 'admin123', 'System', 'Administrator 2')
+            db.session.commit()
+            print("✅ Admin seeding complete")
+            print("📅 Existing data will remain unchanged.")
+            return
         else:
             # Clear existing data (in reverse order due to foreign key constraints)
             print("🗑️  Clearing existing data...")
@@ -29,20 +53,9 @@ def seed_database():
             db.session.commit()
             print("✅ Database cleared successfully")
             
-            # Create admin user
-            print("\n👑 Creating admin user...")
-            admin_id = str(uuid.uuid4())
-            admin = User(
-                id=admin_id,
-                username='admin',
-                name='System',
-                surname='Administrator',
-                role='admin',
-                email='admin@athens.sports'
-            )
-            admin.set_password('admin123')
-            db.session.add(admin)
-            print("✅ Admin user created: admin / admin123")
+            print("\n👑 Creating admin users...")
+            ensure_admin_account('admin', 'admin@athens.sports', 'admin123', 'System', 'Administrator')
+            ensure_admin_account('admin2', 'admin2@athens.sports', 'admin123', 'System', 'Administrator 2')
             
             # Create coach user
             print("\n👨‍🏫 Creating coach user...")

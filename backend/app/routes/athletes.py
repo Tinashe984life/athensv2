@@ -207,6 +207,12 @@ def update_athlete(athlete_id):
         if 'date_of_birth' in data and data['date_of_birth']:
             athlete.date_of_birth = datetime.strptime(data['date_of_birth'], '%Y-%m-%d').date()
             athlete.age = athlete.calculate_age()
+
+        if 'team_id' in data and user.role == 'admin':
+            new_team = Team.query.get(data['team_id'])
+            if not new_team:
+                return jsonify({'success': False, 'message': 'Team not found'}), 404
+            athlete.team_id = data['team_id']
         
         athlete.updated_at = datetime.utcnow()
         db.session.commit()
