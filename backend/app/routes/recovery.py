@@ -32,7 +32,7 @@ def create_recovery_session():
     
     # Parse prehab exercises if provided
     prehab_exercises = data.get('prehab_exercises')
-    if prehab_exercises and isinstance(prehab_exercises, list):
+    if isinstance(prehab_exercises, list):
         prehab_exercises = json.dumps(prehab_exercises)
     
     # Create session

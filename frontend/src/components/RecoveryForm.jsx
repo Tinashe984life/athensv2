@@ -182,6 +182,8 @@ const RecoveryForm = ({ user, athleteId = null, injuryId = null, onSuccess, onCl
           equipment: exercise.equipment,
           notes: exercise.notes
         }));
+      } else {
+        delete submissionData.prehab_exercises;
       }
 
       const response = await recovery.createRecoverySession(submissionData);
