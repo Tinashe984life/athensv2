@@ -1,640 +1,591 @@
-#Wellness data for athletes last updated 12/01/2026
-from app import create_app, db
-from app.models import User, Team, Athlete, Coach, WellnessEntry, PerformanceTest, InjuryRecord
-import uuid
-from datetime import date, timedelta, datetime
-import random
+# seed_backdated_data.py
+# Generate 30 days of backdated wellness data for all athletes (March 10 - April 8, 2026)
 
-def seed_database():
+from app import create_app, db
+from app.models import User, Athlete, WellnessEntry, InjuryRecord, WorkloadSession, RecoverySession
+import uuid
+from datetime import date, timedelta
+import random
+import json
+
+def seed_backdated_data():
     app = create_app()
     
     with app.app_context():
-        print("🚀 Starting database seeding...")
+        print("=" * 70)
+        print("📅 GENERATING 30 DAYS OF BACKDATED WELLNESS DATA")
+        print("=" * 70)
         
-        def ensure_admin_account(username, email, password, name, surname):
-            admin_user = User.query.filter_by(username=username).first()
-            if admin_user:
-                print(f"ℹ️  Admin user already exists: {username}")
-                return admin_user
-            user_id = str(uuid.uuid4())
-            admin_user = User(
-                id=user_id,
-                username=username,
-                name=name,
-                surname=surname,
-                role='admin',
-                email=email
-            )
-            admin_user.set_password(password)
-            db.session.add(admin_user)
-            print(f"✅ Admin user created: {username} / {password}")
-            return admin_user
-
-        # Check if data already exists to avoid duplicates
-        existing_users = User.query.count()
-        if existing_users > 0:
-            print("⚠️  Database already has data. Ensuring admin accounts exist...")
-            ensure_admin_account('admin', 'admin@athens.sports', 'admin123', 'System', 'Administrator')
-            ensure_admin_account('admin2', 'admin2@athens.sports', 'admin123', 'System', 'Administrator 2')
-            db.session.commit()
-            print("✅ Admin seeding complete")
-            print("📅 Existing data will remain unchanged.")
-            return
-        else:
-            # Clear existing data (in reverse order due to foreign key constraints)
-            print("🗑️  Clearing existing data...")
-            WellnessEntry.query.delete()
-            PerformanceTest.query.delete()
-            Coach.query.delete()
-            Athlete.query.delete()
-            Team.query.delete()
-            User.query.delete()
+        # Target date range
+        end_date = date(2026, 4, 8)
+        start_date = end_date - timedelta(days=29)  # 30 days total including end_date
+        
+        print(f"📆 Date Range: {start_date} to {end_date}")
+        print(f"📊 Total Days: {(end_date - start_date).days + 1} days")
+        
+        # Get all athletes
+        athletes = Athlete.query.all()
+        print(f"\n👥 Found {len(athletes)} athletes to process")
+        
+        # Find James Wilson (the athlete with concussion from seed_data.py)
+        james_wilson = None
+        for athlete in athletes:
+            if athlete.user and athlete.user.name == 'James' and athlete.user.surname == 'Wilson':
+                james_wilson = athlete
+                print(f"🔍 Found James Wilson - will create concussion-affected wellness data")
+                break
+        
+        # Track counts
+        wellness_created = 0
+        wellness_skipped = 0
+        workload_created = 0
+        recovery_created = 0
+        
+        # ================================================================
+        # Define realistic data patterns for each position
+        # ================================================================
+        
+        position_wellness_profiles = {
+            'Point Guard': {
+                'baseline_readiness': 7.5,
+                'variability': 0.15,
+                'injury_prone_days': [12, 25],  # Days into the period when they might have minor issues
+                'recovery_priority': ['stretching', 'hydration']
+            },
+            'Shooting Guard': {
+                'baseline_readiness': 7.8,
+                'variability': 0.12,
+                'injury_prone_days': [8, 20],
+                'recovery_priority': ['ice_bath', 'massage']
+            },
+            'Small Forward': {
+                'baseline_readiness': 7.3,
+                'variability': 0.18,
+                'injury_prone_days': [5, 15, 28],
+                'recovery_priority': ['compression', 'stretching']
+            },
+            'Power Forward': {
+                'baseline_readiness': 7.0,
+                'variability': 0.20,
+                'injury_prone_days': [7, 18, 30],
+                'recovery_priority': ['joint_recovery', 'ice_bath']
+            },
+            'Center': {
+                'baseline_readiness': 6.8,
+                'variability': 0.22,
+                'injury_prone_days': [4, 14, 22, 29],
+                'recovery_priority': ['massage', 'compression', 'ice_bath']
+            }
+        }
+        
+        # Create date list
+        date_list = []
+        current_date = start_date
+        while current_date <= end_date:
+            date_list.append(current_date)
+            current_date += timedelta(days=1)
+        
+        print(f"\n📅 Processing {len(date_list)} dates...")
+        print("-" * 70)
+        
+        # ================================================================
+        # Generate data for each athlete
+        # ================================================================
+        
+        for athlete_idx, athlete in enumerate(athletes):
+            print(f"\n🏃 [{athlete_idx + 1}/{len(athletes)}] {athlete.user.name} {athlete.user.surname} (#{athlete.jersey_number}) - {athlete.position}")
             
-            db.session.commit()
-            print("✅ Database cleared successfully")
+            # Get position profile
+            profile = position_wellness_profiles.get(athlete.position, position_wellness_profiles['Point Guard'])
             
-            print("\n👑 Creating admin users...")
-            ensure_admin_account('admin', 'admin@athens.sports', 'admin123', 'System', 'Administrator')
-            ensure_admin_account('admin2', 'admin2@athens.sports', 'admin123', 'System', 'Administrator 2')
+            # Generate a random performance trend for this athlete
+            trend_type = random.choice(['improving', 'stable', 'declining', 'volatile'])
+            trend_factor = 1.0
             
-            # Create coach user
-            print("\n👨‍🏫 Creating coach user...")
-            coach_id = str(uuid.uuid4())
-            coach_user = User(
-                id=coach_id,
-                username='coach',
-                name='John',
-                surname='Smith',
-                role='coach',
-                email='coach@athens.sports'
-            )
-            coach_user.set_password('password123')
-            db.session.add(coach_user)
-            print("✅ Coach user created: coach / password123")
+            # Track consecutive low readiness days for flag simulation
+            consecutive_low_days = 0
             
-            # Create coach profile
-            coach_profile = Coach(
-                id=str(uuid.uuid4()),
-                user_id=coach_id,
-                qualification='Level 3 Coach',
-                years_experience=8,
-                specialization='Strength & Conditioning',
-                contact_number='+1234567890'
-            )
-            db.session.add(coach_profile)
+            for date_idx, entry_date in enumerate(date_list):
+                # Calculate day of week (0=Monday, 6=Sunday)
+                day_of_week = entry_date.weekday()
+                is_weekend = day_of_week >= 5
+                is_game_day = day_of_week in [2, 5]  # Wednesdays and Saturdays are game days
+                is_practice_day = day_of_week in [0, 1, 3, 4] and not is_game_day and not is_weekend
+                
+                # Check if wellness entry already exists
+                existing_wellness = WellnessEntry.query.filter_by(
+                    athlete_id=athlete.id,
+                    date=entry_date
+                ).first()
+                
+                if existing_wellness:
+                    wellness_skipped += 1
+                    continue
+                
+                # ============================================================
+                # Determine if athlete is James Wilson (concussion case)
+                # ============================================================
+                is_james = (james_wilson and athlete.id == james_wilson.id)
+                
+                # ============================================================
+                # WELLNESS DATA GENERATION
+                # ============================================================
+                
+                if is_james:
+                    # James Wilson's concussion recovery pattern
+                    # Concussion occurred on March 20, 2026 (mid-period)
+                    concussion_date = date(2026, 3, 20)
+                    days_since_concussion = (entry_date - concussion_date).days
+                    
+                    if days_since_concussion < 0:
+                        # Before concussion - normal athlete
+                        sleep_hours = round(random.uniform(7.0, 8.5), 1)
+                        sleep_quality = random.randint(3, 5)
+                        stress_level = random.randint(1, 3)
+                        muscle_soreness = random.randint(1, 3)
+                        nutrition_quality = random.randint(3, 5)
+                        mood = random.randint(3, 5)
+                        energy_level = random.randint(3, 5)
+                        motivation_level = random.randint(3, 5)
+                        notes = "Regular training. Feeling good."
+                        
+                    elif days_since_concussion < 3:
+                        # Acute phase - very poor wellness
+                        recovery_factor = 1 - (days_since_concussion / 10)
+                        sleep_hours = round(random.uniform(4.0, 5.5), 1)
+                        sleep_quality = 1
+                        stress_level = random.randint(4, 5)
+                        muscle_soreness = random.randint(4, 5)
+                        nutrition_quality = random.randint(1, 2)
+                        mood = random.randint(1, 2)
+                        energy_level = random.randint(1, 2)
+                        motivation_level = random.randint(1, 2)
+                        notes = "Concussion symptoms: headache, dizziness, light sensitivity. Complete rest."
+                        
+                    elif days_since_concussion < 7:
+                        # Recovery phase - gradually improving
+                        recovery_factor = 0.3 + (days_since_concussion - 3) * 0.15
+                        sleep_hours = round(random.uniform(5.5, 7.0), 1)
+                        sleep_quality = random.randint(2, 3)
+                        stress_level = random.randint(3, 4)
+                        muscle_soreness = random.randint(3, 4)
+                        nutrition_quality = random.randint(2, 3)
+                        mood = random.randint(2, 3)
+                        energy_level = random.randint(2, 3)
+                        motivation_level = random.randint(2, 3)
+                        notes = "Still recovering from concussion. Some symptoms remain. Light activity only."
+                        
+                    elif days_since_concussion < 14:
+                        # Late recovery - nearly normal
+                        recovery_factor = 0.7 + (days_since_concussion - 7) * 0.05
+                        sleep_hours = round(random.uniform(6.5, 8.0), 1)
+                        sleep_quality = random.randint(3, 4)
+                        stress_level = random.randint(2, 3)
+                        muscle_soreness = random.randint(2, 3)
+                        nutrition_quality = random.randint(3, 4)
+                        mood = random.randint(3, 4)
+                        energy_level = random.randint(3, 4)
+                        motivation_level = random.randint(3, 4)
+                        notes = "Returning to normal. Gradual return to play protocol."
+                        
+                    else:
+                        # Fully recovered
+                        sleep_hours = round(random.uniform(7.0, 8.5), 1)
+                        sleep_quality = random.randint(4, 5)
+                        stress_level = random.randint(1, 2)
+                        muscle_soreness = random.randint(1, 2)
+                        nutrition_quality = random.randint(4, 5)
+                        mood = random.randint(4, 5)
+                        energy_level = random.randint(4, 5)
+                        motivation_level = random.randint(4, 5)
+                        notes = "Fully recovered from concussion. Back to full training."
+                
+                else:
+                    # Normal athlete - generate realistic wellness based on day type and trend
+                    
+                    # Apply trend factor (simulates improving/declining form)
+                    if trend_type == 'improving':
+                        trend_factor = 0.8 + (date_idx / len(date_list)) * 0.4
+                    elif trend_type == 'declining':
+                        trend_factor = 1.2 - (date_idx / len(date_list)) * 0.4
+                    elif trend_type == 'volatile':
+                        trend_factor = 0.9 + random.random() * 0.6
+                    else:  # stable
+                        trend_factor = 1.0
+                    
+                    # Base values by day type
+                    if is_game_day:
+                        # Game day - usually well-rested, some pre-game nerves
+                        sleep_hours = round(random.uniform(7.5, 9.0), 1)
+                        sleep_quality = random.randint(4, 5)
+                        stress_level = random.randint(2, 4)  # Some nerves
+                        muscle_soreness = random.randint(1, 3)
+                        nutrition_quality = random.randint(4, 5)
+                        mood = random.randint(4, 5)
+                        energy_level = random.randint(4, 5)
+                        motivation_level = 5  # Max motivation for game day
+                        notes = "Game day! Feeling ready to compete."
+                        
+                    elif is_practice_day:
+                        # Practice day - normal variation
+                        sleep_hours = round(random.uniform(6.5, 8.5), 1)
+                        sleep_quality = random.randint(3, 5)
+                        stress_level = random.randint(1, 3)
+                        muscle_soreness = random.randint(2, 4)  # Sore from previous training
+                        nutrition_quality = random.randint(3, 5)
+                        mood = random.randint(3, 5)
+                        energy_level = random.randint(3, 5)
+                        motivation_level = random.randint(3, 5)
+                        notes = "Good practice session." if random.random() > 0.5 else "Tough practice, feeling tired."
+                        
+                    else:  # Weekend/rest day
+                        sleep_hours = round(random.uniform(8.0, 10.0), 1)  # Sleep in
+                        sleep_quality = random.randint(4, 5)
+                        stress_level = random.randint(1, 2)
+                        muscle_soreness = random.randint(1, 2)
+                        nutrition_quality = random.randint(3, 5)
+                        mood = random.randint(4, 5)
+                        energy_level = random.randint(4, 5)
+                        motivation_level = random.randint(3, 5)
+                        notes = "Rest day. Recovering well." if random.random() > 0.3 else "Active recovery today."
+                    
+                    # Apply trend factor to adjust values
+                    if trend_type != 'stable':
+                        # Adjust readiness-related values
+                        if trend_type == 'improving':
+                            if date_idx > len(date_list) * 0.7:
+                                # Later in period - better scores
+                                sleep_quality = min(5, sleep_quality + 1)
+                                mood = min(5, mood + 1)
+                                energy_level = min(5, energy_level + 1)
+                                muscle_soreness = max(1, muscle_soreness - 1)
+                        elif trend_type == 'declining':
+                            if date_idx > len(date_list) * 0.5:
+                                # Later in period - worse scores
+                                sleep_quality = max(1, sleep_quality - 1)
+                                mood = max(1, mood - 1)
+                                energy_level = max(1, energy_level - 1)
+                                muscle_soreness = min(5, muscle_soreness + 1)
+                    
+                    # Check if this day is an injury-prone day for this position
+                    day_number = date_idx + 1
+                    if day_number in profile['injury_prone_days'] and random.random() < 0.4:
+                        # Simulate minor injury/issue
+                        muscle_soreness = min(5, muscle_soreness + 2)
+                        stress_level = min(5, stress_level + 1)
+                        mood = max(1, mood - 1)
+                        notes = f"Feeling some {athlete.position.lower()} strain. Taking it easy today."
+                    
+                    # Check for consecutive low readiness
+                    current_readiness_raw = (sleep_quality + (6 - stress_level) + (6 - muscle_soreness) + 
+                                            nutrition_quality + mood + energy_level + motivation_level) / 7
+                    
+                    if current_readiness_raw < 3.5:
+                        consecutive_low_days += 1
+                        if consecutive_low_days >= 3:
+                            notes += " Need to monitor - multiple days of low readiness."
+                    else:
+                        consecutive_low_days = 0
+                
+                # Create wellness entry
+                wellness_entry = WellnessEntry(
+                    id=str(uuid.uuid4()),
+                    athlete_id=athlete.id,
+                    date=entry_date,
+                    sleep_hours=sleep_hours,
+                    sleep_quality=sleep_quality,
+                    stress_level=stress_level,
+                    muscle_soreness=muscle_soreness,
+                    nutrition_quality=nutrition_quality,
+                    mood=mood,
+                    energy_level=energy_level,
+                    motivation_level=motivation_level,
+                    previous_session_rpe=random.randint(4, 8) if is_practice_day and random.random() > 0.3 else None,
+                    previous_session_duration=random.randint(45, 90) if is_practice_day and random.random() > 0.3 else None,
+                    notes=notes
+                )
+                
+                # Calculate readiness score
+                wellness_entry.readiness_score = wellness_entry.calculate_readiness_score()
+                db.session.add(wellness_entry)
+                wellness_created += 1
             
-            # Create team for coach
-            print("\n🏆 Creating team...")
-            team_id = f"TEAM-{uuid.uuid4().hex[:8].upper()}"
-            team = Team(
-                id=team_id,
-                name='Varsity Basketball 2025',
-                coach_id=coach_id,
-                sport='Basketball',
-                season='2025 Spring Season'
-            )
-            db.session.add(team)
-            print(f"✅ Team created: Varsity Basketball 2025")
+            # Print summary for this athlete
+            print(f"  ✅ Created {len(date_list)} wellness entries")
+            print(f"     Trend: {trend_type} | Avg Readiness: ~{profile['baseline_readiness']:.1f}/10")
+        
+        # ================================================================
+        # Create Workload Sessions (training/match data)
+        # ================================================================
+        
+        print("\n" + "=" * 70)
+        print("💪 CREATING WORKLOAD SESSIONS")
+        print("=" * 70)
+        
+        for athlete_idx, athlete in enumerate(athletes):
+            print(f"\n🏃 Processing workload for: {athlete.user.name} {athlete.user.surname}")
             
-            # Create athlete users and profiles
-            print("\n👥 Creating athletes...")
-            athlete_data = [
-                {
-                    'name': 'Michael',
-                    'surname': 'Johnson',
-                    'jersey': 23,
-                    'age': 18,
-                    'height': 193.5,
-                    'weight': 88.2,
-                    'position': 'Point Guard',
-                    'side': 'Right'
-                },
-                {
-                    'name': 'Sarah',
-                    'surname': 'Williams',
-                    'jersey': 10,
-                    'age': 17,
-                    'height': 180.3,
-                    'weight': 72.5,
-                    'position': 'Shooting Guard',
-                    'side': 'Left'
-                },
-                {
-                    'name': 'David',
-                    'surname': 'Chen',
-                    'jersey': 32,
-                    'age': 19,
-                    'height': 201.0,
-                    'weight': 95.8,
-                    'position': 'Center',
-                    'side': 'Right'
-                },
-                {
-                    'name': 'Emma',
-                    'surname': 'Garcia',
-                    'jersey': 7,
-                    'age': 18,
-                    'height': 185.6,
-                    'weight': 79.3,
-                    'position': 'Power Forward',
-                    'side': 'Ambidextrous'
-                },
-                {
-                    'name': 'James',
-                    'surname': 'Wilson',
-                    'jersey': 15,
-                    'age': 17,
-                    'height': 190.2,
-                    'weight': 86.7,
-                    'position': 'Small Forward',
-                    'side': 'Right'
-                },
-                {
-                    'name': 'Olivia',
-                    'surname': 'Martinez',
-                    'jersey': 3,
-                    'age': 18,
-                    'height': 178.9,
-                    'weight': 68.4,
-                    'position': 'Shooting Guard',
-                    'side': 'Right'
-                },
-                {
-                    'name': 'Ethan',
-                    'surname': 'Brown',
-                    'jersey': 21,
-                    'age': 19,
-                    'height': 195.5,
-                    'weight': 92.1,
-                    'position': 'Power Forward',
-                    'side': 'Left'
-                },
-                {
-                    'name': 'Sophia',
-                    'surname': 'Taylor',
-                    'jersey': 5,
-                    'age': 17,
-                    'height': 183.2,
-                    'weight': 74.8,
-                    'position': 'Point Guard',
-                    'side': 'Ambidextrous'
-                },
-                {
-                    'name': 'Liam',
-                    'surname': 'Anderson',
-                    'jersey': 42,
-                    'age': 18,
-                    'height': 198.7,
-                    'weight': 89.5,
-                    'position': 'Center',
-                    'side': 'Right'
-                },
-                {
-                    'name': 'Ava',
-                    'surname': 'Thomas',
-                    'jersey': 12,
-                    'age': 17,
-                    'height': 176.8,
-                    'weight': 66.3,
-                    'position': 'Small Forward',
-                    'side': 'Left'
-                }
+            is_james = (james_wilson and athlete.id == james_wilson.id)
+            sessions_created = 0
+            
+            for entry_date in date_list:
+                day_of_week = entry_date.weekday()
+                is_weekend = day_of_week >= 5
+                is_game_day = day_of_week in [2, 5]  # Wednesdays and Saturdays
+                is_practice_day = day_of_week in [0, 1, 3, 4] and not is_game_day and not is_weekend
+                
+                # Check if workload already exists
+                existing_workload = WorkloadSession.query.filter_by(
+                    athlete_id=athlete.id,
+                    date=entry_date
+                ).first()
+                
+                if existing_workload:
+                    continue
+                
+                # Skip if James Wilson is in acute concussion phase
+                if is_james:
+                    concussion_date = date(2026, 3, 20)
+                    days_since_concussion = (entry_date - concussion_date).days
+                    if 0 <= days_since_concussion < 7:
+                        continue  # No training during acute concussion
+                
+                # Create workload session only for training/practice/game days
+                if is_game_day:
+                    session_type = 'match'
+                    session_name = 'Competition Game'
+                    duration_minutes = random.randint(32, 40)  # Basketball game length
+                    perceived_exertion = random.randint(7, 9)
+                    distance_km = round(random.uniform(3.5, 5.5), 1)
+                    notes = "Full game. Good effort from the team."
+                    
+                elif is_practice_day:
+                    session_type = 'training'
+                    session_name = random.choice(['Team Practice', 'Shooting Practice', 'Conditioning', 'Tactical Session', 'Strength Training'])
+                    duration_minutes = random.randint(60, 120)
+                    perceived_exertion = random.randint(5, 8)
+                    distance_km = round(random.uniform(2.0, 4.0), 1)
+                    notes = random.choice([
+                        "Focused on defensive drills today.",
+                        "High intensity conditioning session.",
+                        "Light practice, focusing on recovery.",
+                        "Good energy at practice.",
+                        "Worked on set plays and transitions."
+                    ])
+                else:
+                    # Weekend - light or no training
+                    if random.random() < 0.3:  # 30% chance of light workout on weekend
+                        session_type = 'training'
+                        session_name = 'Active Recovery'
+                        duration_minutes = random.randint(30, 60)
+                        perceived_exertion = random.randint(3, 5)
+                        distance_km = round(random.uniform(1.0, 2.5), 1)
+                        notes = "Light recovery session."
+                    else:
+                        continue  # No session
+                
+                # Calculate workload score
+                workload_score = perceived_exertion * duration_minutes
+                
+                workload_session = WorkloadSession(
+                    id=str(uuid.uuid4()),
+                    athlete_id=athlete.id,
+                    date=entry_date,
+                    session_type=session_type,
+                    session_name=session_name,
+                    duration_minutes=duration_minutes,
+                    perceived_exertion=perceived_exertion,
+                    workload_score=workload_score,
+                    distance_km=distance_km,
+                    average_hr=round(random.uniform(120, 160), 1) if session_type == 'match' else round(random.uniform(110, 145), 1),
+                    max_hr=round(random.uniform(170, 195), 1) if session_type == 'match' else round(random.uniform(155, 185), 1),
+                    sprints_count=random.randint(10, 35) if session_type == 'match' else random.randint(5, 20),
+                    high_intensity_distance=round(random.uniform(0.5, 1.5), 1) if session_type == 'match' else round(random.uniform(0.3, 1.0), 1),
+                    fatigue_level=random.randint(3, 5),
+                    muscle_soreness_post=random.randint(2, 4),
+                    motivation_post=random.randint(3, 5),
+                    notes=notes
+                )
+                
+                db.session.add(workload_session)
+                sessions_created += 1
+                workload_created += 1
+            
+            print(f"  ✅ Created {sessions_created} workload sessions")
+        
+        # ================================================================
+        # Create Recovery Sessions
+        # ================================================================
+        
+        print("\n" + "=" * 70)
+        print("🧘 CREATING RECOVERY SESSIONS")
+        print("=" * 70)
+        
+        prehab_exercises_library = {
+            'injury_prevention': [
+                {"name": "Nordic Hamstring Curls", "sets": 3, "reps": 8, "notes": "Control eccentric phase"},
+                {"name": "Copenhagen Adduction", "sets": 3, "reps": 10, "notes": "Hold for 2 seconds"},
+                {"name": "Single Leg Romanian Deadlift", "sets": 3, "reps": 10, "notes": "Use light weight"},
+                {"name": "Glute Bridges", "sets": 3, "reps": 15, "notes": "Squeeze at top"}
+            ],
+            'performance': [
+                {"name": "Box Jumps", "sets": 4, "reps": 6, "notes": "Focus on explosive power"},
+                {"name": "Medicine Ball Throws", "sets": 3, "reps": 8, "notes": "Use 4-6kg ball"},
+                {"name": "Agility Ladder Drills", "sets": 5, "reps": 1, "notes": "Various patterns"},
+                {"name": "Plyometric Push-ups", "sets": 3, "reps": 8, "notes": "Explosive movement"}
+            ],
+            'recovery': [
+                {"name": "Foam Rolling", "sets": 1, "reps": 1, "notes": "Full body, 10 minutes"},
+                {"name": "Static Stretching", "sets": 1, "reps": 1, "notes": "Hold each stretch 30 seconds"},
+                {"name": "Ice Bath", "sets": 1, "reps": 1, "notes": "10-15 minutes at 10-15°C"},
+                {"name": "Compression Therapy", "sets": 1, "reps": 1, "notes": "20 minutes"}
             ]
+        }
+        
+        for athlete_idx, athlete in enumerate(athletes):
+            print(f"\n🏃 Processing recovery for: {athlete.user.name} {athlete.user.surname}")
             
-            athletes_created = []
+            is_james = (james_wilson and athlete.id == james_wilson.id)
+            recovery_created_count = 0
             
-            for i, data in enumerate(athlete_data):
-                # Create user
-                athlete_user_id = str(uuid.uuid4())
-                username = f"{data['name'].lower()}.{data['surname'].lower()}"
+            for entry_date in date_list:
+                day_of_week = entry_date.weekday()
+                is_game_day = day_of_week in [2, 5]
+                is_practice_day = day_of_week in [0, 1, 3, 4] and not is_game_day
                 
-                # Ensure unique username
-                counter = 1
-                original_username = username
-                while User.query.filter_by(username=username).first():
-                    username = f"{original_username}{counter}"
-                    counter += 1
+                # Check if recovery already exists
+                existing_recovery = RecoverySession.query.filter_by(
+                    athlete_id=athlete.id,
+                    date=entry_date
+                ).first()
                 
-                athlete_user = User(
-                    id=athlete_user_id,
-                    username=username,
-                    name=data['name'],
-                    surname=data['surname'],
-                    role='athlete',
-                    email=f"{username}@athens.sports"
-                )
-                athlete_user.set_password('password123')
-                db.session.add(athlete_user)
+                if existing_recovery:
+                    continue
                 
-                # Create athlete profile
-                athlete = Athlete(
-                    id=f"ATH-{uuid.uuid4().hex[:8].upper()}",
-                    user_id=athlete_user_id,
-                    team_id=team_id,
-                    jersey_number=data['jersey'],
-                    age=data['age'],
-                    height=data['height'],
-                    weight=data['weight'],
-                    position=data['position'],
-                    dominant_side=data['side'],
-                    bio_notes=f"Top performer in {data['position']} position. Shows great potential."
-                )
-                db.session.add(athlete)
-                athletes_created.append(athlete)
+                # Create recovery session after games or hard practices
+                should_create = False
+                recovery_type = None
                 
-                print(f"  ✓ {data['name']} {data['surname']} (#{data['jersey']}) - {username} / password123")
-            
-            db.session.commit()
-            print(f"✅ {len(athletes_created)} athletes created successfully")
-            
-            # Create wellness entries for athletes (last 7 days, excluding today)
-            print("\n💪 Creating wellness entries (last 7 days)...")
-            wellness_entries_count = 0
-            
-            for athlete in athletes_created:
-                for i in range(1, 7):  # Create entries for last 7 days (excluding today)
-                    entry_date = date.today() - timedelta(days=i)
+                if is_game_day:
+                    # Always create recovery after games
+                    should_create = True
+                    recovery_type = 'passive'
+                    session_name = 'Post-Game Recovery'
+                    duration_minutes = random.randint(20, 45)
                     
-                    # Check if entry already exists for this date
-                    existing_entry = WellnessEntry.query.filter_by(
-                        athlete_id=athlete.id,
-                        date=entry_date
-                    ).first()
+                elif is_practice_day and random.random() < 0.4:
+                    # 40% chance of recovery after practice
+                    should_create = True
+                    recovery_type = random.choice(['active', 'passive', 'prehab'])
+                    if recovery_type == 'active':
+                        session_name = 'Active Recovery Session'
+                        duration_minutes = random.randint(30, 60)
+                    elif recovery_type == 'passive':
+                        session_name = 'Passive Recovery'
+                        duration_minutes = random.randint(15, 30)
+                    else:
+                        session_name = 'Prehab Session'
+                        duration_minutes = random.randint(20, 40)
+                
+                elif not is_game_day and not is_practice_day and random.random() < 0.3:
+                    # Weekend recovery
+                    should_create = True
+                    recovery_type = 'active'
+                    session_name = 'Weekend Recovery'
+                    duration_minutes = random.randint(30, 90)
+                
+                if should_create:
+                    # Select prehab exercises if it's a prehab session
+                    prehab_exercises = []
+                    if recovery_type == 'prehab':
+                        focus = random.choice(['injury_prevention', 'performance', 'recovery'])
+                        exercises = prehab_exercises_library[focus]
+                        prehab_exercises = random.sample(exercises, min(3, len(exercises)))
                     
-                    if existing_entry:
-                        continue
-                    
-                    # Create realistic wellness data
-                    sleep_hours = round(random.uniform(6.5, 9.0), 1)
-                    sleep_quality = random.randint(3, 5)
-                    stress_level = random.randint(1, 4)
-                    muscle_soreness = random.randint(1, 4)
-                    nutrition_quality = random.randint(3, 5)
-                    mood = random.randint(3, 5)
-                    energy_level = random.randint(3, 5)
-                    motivation_level = random.randint(3, 5)
-                    
-                    wellness_entry = WellnessEntry(
+                    recovery_session = RecoverySession(
                         id=str(uuid.uuid4()),
                         athlete_id=athlete.id,
                         date=entry_date,
-                        sleep_hours=sleep_hours,
-                        sleep_quality=sleep_quality,
-                        stress_level=stress_level,
-                        muscle_soreness=muscle_soreness,
-                        nutrition_quality=nutrition_quality,
-                        mood=mood,
-                        energy_level=energy_level,
-                        motivation_level=motivation_level,
-                        previous_session_rpe=random.randint(4, 8) if i > 1 else None,
-                        previous_session_duration=random.randint(45, 120) if i > 1 else None,
-                        notes="Training well, feeling good." if i == 1 else "Regular training session." if i % 2 == 0 else None
+                        recovery_type=recovery_type,
+                        session_name=session_name,
+                        duration_minutes=duration_minutes,
+                        stretching=random.choice([True, False]) if recovery_type != 'passive' else False,
+                        foam_rolling=random.choice([True, False]),
+                        massage=random.choice([True, False]),
+                        ice_bath=is_game_day or random.random() < 0.3,
+                        compression=random.choice([True, False]),
+                        sleep_quality=random.randint(3, 5),
+                        nutrition_quality=random.randint(3, 5),
+                        hydration_status=random.randint(3, 5),
+                        prehab_exercises=json.dumps(prehab_exercises) if prehab_exercises else None,
+                        perceived_recovery=random.randint(6, 9),
+                        readiness_improvement=random.randint(1, 3),
+                        notes=f"Recovery session focused on {recovery_type} recovery."
                     )
                     
-                    # Calculate readiness score
-                    wellness_entry.readiness_score = wellness_entry.calculate_readiness_score()
-                    db.session.add(wellness_entry)
-                    wellness_entries_count += 1
+                    db.session.add(recovery_session)
+                    recovery_created_count += 1
+                    recovery_created += 1
             
-            db.session.commit()
-            print(f"✅ {wellness_entries_count} wellness entries created (last 7 days)")
-            
-            # Create performance tests for athletes
-            print("\n📊 Creating performance tests...")
-            test_types = ['strength', 'speed', 'agility', 'power', 'endurance', 'flexibility', 'comprehensive']
-            performance_tests_count = 0
-            
-            # Test data templates by position
-            position_benchmarks = {
-                'Point Guard': {
-                    'bench_press': (45, 85),
-                    'squat': (70, 120),
-                    'vertical_jump': (55, 75),
-                    'sprint_40m': (5.2, 6.0)
-                },
-                'Shooting Guard': {
-                    'bench_press': (50, 90),
-                    'squat': (75, 130),
-                    'vertical_jump': (60, 80),
-                    'sprint_40m': (5.1, 5.9)
-                },
-                'Small Forward': {
-                    'bench_press': (60, 100),
-                    'squat': (90, 150),
-                    'vertical_jump': (65, 85),
-                    'sprint_40m': (5.0, 5.8)
-                },
-                'Power Forward': {
-                    'bench_press': (70, 110),
-                    'squat': (100, 160),
-                    'vertical_jump': (70, 90),
-                    'sprint_40m': (5.2, 6.0)
-                },
-                'Center': {
-                    'bench_press': (80, 120),
-                    'squat': (110, 170),
-                    'vertical_jump': (75, 95),
-                    'sprint_40m': (5.3, 6.1)
-                }
-            }
-            
-            for athlete in athletes_created:
-                benchmarks = position_benchmarks.get(athlete.position, position_benchmarks['Point Guard'])
-                
-                for i in range(3):  # Create 3 tests per athlete at different times
-                    test_date = date.today() - timedelta(days=i * 30)  # Spread out over 90 days
-                    test_type = test_types[i % len(test_types)]
-                    
-                    # Check if test already exists for this date
-                    existing_test = PerformanceTest.query.filter_by(
-                        athlete_id=athlete.id,
-                        test_date=test_date
-                    ).first()
-                    
-                    if existing_test:
-                        continue
-                    
-                    # Generate test data based on position and improvement over time
-                    improvement_factor = 1.0 + (0.05 * i)  # 5% improvement per test
-                    
-                    performance_test = PerformanceTest(
-                        id=str(uuid.uuid4()),
-                        athlete_id=athlete.id,
-                        test_date=test_date,
-                        test_type=test_type,
-                        
-                        # Anthropometric measurements (for first test)
-                        height=athlete.height if i == 0 else None,
-                        weight=athlete.weight if i == 0 else None,
-                        body_fat_percentage=round(random.uniform(8.0, 18.0), 1) if i == 0 else None,
-                        
-                        # Strength tests (if strength type or comprehensive)
-                        bench_press_1rm=round(random.uniform(*benchmarks['bench_press']) * improvement_factor, 1) 
-                        if test_type in ['strength', 'comprehensive'] else None,
-                        
-                        squat_1rm=round(random.uniform(*benchmarks['squat']) * improvement_factor, 1) 
-                        if test_type in ['strength', 'comprehensive'] else None,
-                        
-                        deadlift_1rm=round(random.uniform(benchmarks['squat'][0] * 1.2, benchmarks['squat'][1] * 1.2) * improvement_factor, 1) 
-                        if test_type in ['strength', 'comprehensive'] else None,
-                        
-                        pull_ups_max=random.randint(3, 20) 
-                        if test_type in ['strength', 'comprehensive'] else None,
-                        
-                        push_ups_1min=random.randint(15, 45) 
-                        if test_type in ['strength', 'comprehensive'] else None,
-                        
-                        sit_ups_2min=random.randint(30, 70) 
-                        if test_type in ['strength', 'comprehensive'] else None,
-                        
-                        # Speed tests
-                        sprint_10m=round(random.uniform(1.8, 2.3), 2) 
-                        if test_type in ['speed', 'comprehensive'] else None,
-                        
-                        sprint_20m=round(random.uniform(3.1, 3.8), 2) 
-                        if test_type in ['speed', 'comprehensive'] else None,
-                        
-                        sprint_40m=round(random.uniform(*benchmarks['sprint_40m']) * (1 - (0.02 * i)), 2) 
-                        if test_type in ['speed', 'comprehensive'] else None,
-                        
-                        # Agility tests
-                        agility_t_test=round(random.uniform(9.5, 11.5) * (1 - (0.01 * i)), 2) 
-                        if test_type in ['agility', 'comprehensive'] else None,
-                        
-                        agility_505=round(random.uniform(2.2, 2.8), 2) 
-                        if test_type in ['agility', 'comprehensive'] else None,
-                        
-                        illinois_agility=round(random.uniform(16.0, 19.0) * (1 - (0.01 * i)), 2) 
-                        if test_type in ['agility', 'comprehensive'] else None,
-                        
-                        # Power tests
-                        vertical_jump=round(random.uniform(*benchmarks['vertical_jump']) * improvement_factor, 1) 
-                        if test_type in ['power', 'comprehensive'] else None,
-                        
-                        broad_jump=round(random.uniform(220, 320) * improvement_factor, 1) 
-                        if test_type in ['power', 'comprehensive'] else None,
-                        
-                        single_leg_jump_left=round(random.uniform(140, 220) * improvement_factor, 1) 
-                        if test_type in ['power', 'comprehensive'] else None,
-                        
-                        single_leg_jump_right=round(random.uniform(140, 220) * improvement_factor, 1) 
-                        if test_type in ['power', 'comprehensive'] else None,
-                        
-                        # Endurance tests
-                        yo_yo_test=random.randint(1000, 2400) 
-                        if test_type in ['endurance', 'comprehensive'] else None,
-                        
-                        bronco_test=round(random.uniform(450, 550), 1) 
-                        if test_type in ['endurance', 'comprehensive'] else None,
-                        
-                        # Flexibility tests
-                        sit_and_reach=round(random.uniform(18.0, 32.0), 1) 
-                        if test_type in ['flexibility', 'comprehensive'] else None,
-                        
-                        dorsiflexion_left=round(random.uniform(8.0, 15.0), 1) 
-                        if test_type in ['flexibility', 'comprehensive'] else None,
-                        
-                        dorsiflexion_right=round(random.uniform(8.0, 15.0), 1) 
-                        if test_type in ['flexibility', 'comprehensive'] else None,
-                        
-                        notes=f"{test_type.capitalize()} assessment completed on {test_date.strftime('%B %d, %Y')}. "
-                              f"Showing {int((improvement_factor - 1) * 100)}% improvement from baseline."
-                    )
-                    
-                    db.session.add(performance_test)
-                    performance_tests_count += 1
-            
-            db.session.commit()
-            print(f"✅ {performance_tests_count} performance tests created successfully")
+            print(f"  ✅ Created {recovery_created_count} recovery sessions")
         
-        
-        print("\n📅 Adding TODAY'S wellness checks for all athletes...")
-        
-        # Get today's date
-        today = date.today()
-        
-        # Find James Wilson (the athlete with concussion)
-        james_wilson = None
-        for athlete in Athlete.query.all():
-            if athlete.user and athlete.user.name == 'James' and athlete.user.surname == 'Wilson':
-                james_wilson = athlete
-                break
-        
-        # Create concussion for James Wilson if it doesn't exist
-        if james_wilson:
-            existing_concussion = InjuryRecord.query.filter_by(
-                athlete_id=james_wilson.id,
-                is_concussion=True
-            ).first()
-            
-            if not existing_concussion:
-                print("\n🩹 Creating concussion record for James Wilson...")
-                concussion_date = date(2026, 12, 1)  # December 1, 2026
-                
-                concussion = InjuryRecord(
-                    id=str(uuid.uuid4()),
-                    athlete_id=james_wilson.id,
-                    injury_type='Concussion',
-                    body_part='Head',
-                    side='Right',
-                    severity='mild',
-                    date_reported=today,
-                    date_occurred=concussion_date,
-                    mechanism='Head-to-ground contact during practice',
-                    symptoms='Headache, dizziness, mild confusion',
-                    diagnosis='Mild Traumatic Brain Injury (Concussion)',
-                    treatment_plan='Complete rest, no screen time, gradual return-to-play protocol',
-                    estimated_recovery_time=1,  # 1 day recovery (as per instructions)
-                    status='active',
-                    notes='Player hit head on floor during defensive drill. No loss of consciousness.',
-                    
-                    # Concussion-specific fields
-                    is_concussion=True,
-                    loss_of_consciousness=False,
-                    loc_duration=None,
-                    post_traumatic_amnesia=False,
-                    pta_duration=None,
-                    mechanism_of_concussion='head_to_ground',
-                    suspected_concussion=False,
-                    referred_to_physician=True,
-                    physician_name='Dr. Sarah Johnson',
-                    physician_contact='sarah.johnson@sportsmed.com',
-                    
-                    # RTP protocol fields
-                    rtp_protocol_started=True,
-                    rtp_start_date=concussion_date,
-                    rtp_stage=2,  # Currently at Stage 2
-                    rtp_stage_start_date=today - timedelta(days=1),
-                    rtp_completed_date=None,
-                    rtp_medical_clearance=False,
-                    rtp_medical_clearance_date=None,
-                    rtp_medical_clearance_by=None
-                )
-                
-                db.session.add(concussion)
-                print(f"✅ Concussion created for James Wilson (mild, head-to-ground, 1-day recovery)")
-        
-        # Add today's wellness checks for all athletes
-        print("\n💪 Creating today's wellness checks...")
-        todays_wellness_count = 0
-        
-        for athlete in Athlete.query.all():
-            # Check if today's wellness entry already exists
-            existing_today_entry = WellnessEntry.query.filter_by(
-                athlete_id=athlete.id,
-                date=today
-            ).first()
-            
-            if existing_today_entry:
-                print(f"  ⏭️  Today's wellness already exists for {athlete.user.name} {athlete.user.surname}")
-                continue
-            
-            # Determine if this is James Wilson (with concussion)
-            is_james_wilson = athlete.user and athlete.user.name == 'James' and athlete.user.surname == 'Wilson'
-            
-            # Generate wellness data
-            if is_james_wilson:
-                # James Wilson (with concussion) - poor wellness scores
-                sleep_hours = round(random.uniform(4.5, 6.0), 1)  # Poor sleep
-                sleep_quality = random.randint(1, 2)  # Very poor sleep quality
-                stress_level = random.randint(4, 5)  # High stress
-                muscle_soreness = random.randint(4, 5)  # High soreness
-                nutrition_quality = random.randint(2, 3)  # Poor nutrition
-                mood = random.randint(1, 2)  # Poor mood
-                energy_level = random.randint(1, 2)  # Low energy
-                motivation_level = random.randint(1, 2)  # Low motivation
-                notes = "Recovering from concussion. Experiencing headaches and dizziness. Following rest protocol."
-                previous_session_rpe = None  # No training due to concussion
-                previous_session_duration = None
-            else:
-                # Normal athletes - good wellness scores
-                sleep_hours = round(random.uniform(7.0, 9.0), 1)
-                sleep_quality = random.randint(4, 5)
-                stress_level = random.randint(1, 3)
-                muscle_soreness = random.randint(1, 3)
-                nutrition_quality = random.randint(4, 5)
-                mood = random.randint(4, 5)
-                energy_level = random.randint(4, 5)
-                motivation_level = random.randint(4, 5)
-                notes = "Feeling good, ready for practice."
-                previous_session_rpe = random.randint(5, 7) if random.random() > 0.3 else None
-                previous_session_duration = random.randint(60, 90) if previous_session_rpe else None
-            
-            # Create today's wellness entry
-            wellness_entry = WellnessEntry(
-                id=str(uuid.uuid4()),
-                athlete_id=athlete.id,
-                date=today,
-                sleep_hours=sleep_hours,
-                sleep_quality=sleep_quality,
-                stress_level=stress_level,
-                muscle_soreness=muscle_soreness,
-                nutrition_quality=nutrition_quality,
-                mood=mood,
-                energy_level=energy_level,
-                motivation_level=motivation_level,
-                previous_session_rpe=previous_session_rpe,
-                previous_session_duration=previous_session_duration,
-                notes=notes
-            )
-            
-            # Calculate readiness score
-            wellness_entry.readiness_score = wellness_entry.calculate_readiness_score()
-            db.session.add(wellness_entry)
-            todays_wellness_count += 1
-            
-            # Show James Wilson's poor scores
-            if is_james_wilson:
-                print(f"  ⚠️  {athlete.user.name} {athlete.user.surname} (Concussion): Readiness Score {wellness_entry.readiness_score}/10")
-            else:
-                print(f"  ✓ {athlete.user.name} {athlete.user.surname}: Readiness Score {wellness_entry.readiness_score}/10")
+        # ================================================================
+        # COMMIT ALL CHANGES
+        # ================================================================
         
         db.session.commit()
-        print(f"\n✅ Added {todays_wellness_count} today's wellness checks")
         
-        # ============================================================================
+        # ================================================================
         # SUMMARY
-        # ============================================================================
-        print("\n" + "="*50)
-        print("🎉 DATABASE SEEDING COMPLETE!")
-        print("="*50)
+        # ================================================================
         
-        # Get counts for summary
-        total_athletes = Athlete.query.count()
-        total_teams = Team.query.count()
-        total_wellness = WellnessEntry.query.count()
-        today_wellness = WellnessEntry.query.filter_by(date=today).count()
-        concussions = InjuryRecord.query.filter_by(is_concussion=True).count()
+        print("\n" + "=" * 70)
+        print("🎉 BACKDATED DATA GENERATION COMPLETE!")
+        print("=" * 70)
         
-        print("\n📊 Current Database Status:")
-        print(f"  • {User.query.filter_by(role='admin').count()} Admin user(s)")
-        print(f"  • {User.query.filter_by(role='coach').count()} Coach user(s)")
-        print(f"  • {total_teams} Team(s)")
-        print(f"  • {total_athletes} Athlete user(s)")
-        print(f"  • {total_wellness} Total wellness entries")
-        print(f"  • {today_wellness} Today's wellness checks")
-        print(f"  • {concussions} Concussion record(s)")
+        print("\n📊 Generation Summary:")
+        print(f"  • Wellness Entries Created: {wellness_created}")
+        print(f"  • Wellness Entries Skipped (already existed): {wellness_skipped}")
+        print(f"  • Workload Sessions Created: {workload_created}")
+        print(f"  • Recovery Sessions Created: {recovery_created}")
         
-        print("\n🎮 Test Credentials:")
-        print("  Admin:     admin / admin123")
-        print("  Coach:     coach / password123")
-        print("  Athletes:  firstname.lastname / password123")
-        print("             (e.g., michael.johnson / password123)")
+        print("\n📅 Date Range Summary:")
+        print(f"  • Start Date: {start_date}")
+        print(f"  • End Date: {end_date}")
+        print(f"  • Total Days: {(end_date - start_date).days + 1}")
         
-        print("\n⚠️  Special Note:")
-        print("  • James Wilson has a mild concussion (logged Dec 1)")
-        print("  • His wellness scores reflect concussion symptoms")
-        print("  • He is currently at RTP Stage 2")
+        print("\n👥 Athletes Processed:")
+        for athlete in athletes:
+            wellness_count = WellnessEntry.query.filter(
+                WellnessEntry.athlete_id == athlete.id,
+                WellnessEntry.date >= start_date,
+                WellnessEntry.date <= end_date
+            ).count()
+            workload_count = WorkloadSession.query.filter(
+                WorkloadSession.athlete_id == athlete.id,
+                WorkloadSession.date >= start_date,
+                WorkloadSession.date <= end_date
+            ).count()
+            recovery_count = RecoverySession.query.filter(
+                RecoverySession.athlete_id == athlete.id,
+                RecoverySession.date >= start_date,
+                RecoverySession.date <= end_date
+            ).count()
+            
+            status = "⚠️ CONCUSSION" if (james_wilson and athlete.id == james_wilson.id) else "✓"
+            print(f"  {status} {athlete.user.name} {athlete.user.surname}: {wellness_count} wellness, {workload_count} workload, {recovery_count} recovery")
         
-        print("\n🔗 Features Now Available:")
-        print("  ✓ User authentication & roles")
-        print("  ✓ Athlete & team management")
-        print("  ✓ Daily wellness tracking (with today's data)")
-        print("  ✓ Performance test recording")
-        print("  ✓ Injury & concussion management")
-        print("  ✓ Analytics & dashboards")
+        print("\n💡 Data Features:")
+        print("  ✓ Daily wellness entries for 30 days")
+        print("  ✓ Workload sessions (training & matches)")
+        print("  ✓ Recovery sessions with prehab exercises")
+        print("  ✓ Realistic patterns by position and day type")
+        print("  ✓ Concussion recovery timeline for James Wilson")
+        print("  ✓ Game day vs practice day variations")
+        print("  ✓ Injury-prone day simulations")
+        print("  ✓ Performance trends (improving/declining/stable/volatile)")
         
-        print("\n🚀 Ready to use Athens Sports SAAS!")
+        print("\n🚀 Ready for testing and analysis!")
 
 if __name__ == '__main__':
-    seed_database()
+    seed_backdated_data()
