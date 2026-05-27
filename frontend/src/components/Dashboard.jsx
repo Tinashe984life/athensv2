@@ -55,8 +55,7 @@ const Dashboard = ({ user, onLogout }) => {
     { id: 'my-stats', label: 'My Stats', icon: '👤' },
     { id: 'wellness', label: 'Wellness', icon: '💪' },
     { id: 'performance', label: 'Performance', icon: '📈' },
-    { id: 'workload', label: 'Workload', icon: '🏋️' }, // New tab
-    { id: 'goals', label: 'Goals', icon: '🎯' },
+    { id: 'workload', label: 'Workload', icon: '🏋️' }, // Active if configured
     { id: 'injuries', label: 'Injuries', icon: '🩹' },
   ];
   
@@ -175,9 +174,12 @@ const Dashboard = ({ user, onLogout }) => {
                 </h2>
                 <p className="text-slate-300 text-lg">
                   {user?.role === 'coach' 
-                    ? 'Monitor your team\'s performance and workload metrics in real-time.'
-                    : 'Track your training load, recovery, and daily wellness.'
+                    ? 'Monitor your team\'s performance, wellness, and injury tracking. Basic MVP is live and currently in testing.'
+                    : 'Track your training load, recovery, and daily wellness. Core athlete workflows are live and being tested.'
                   }
+                </p>
+                <p className="text-sm text-slate-400 mt-3">
+                  Basic MVP is complete: wellness check-ins, profile updates, performance history, injury history, and admin exports are implemented. Goals and advanced planning are still in progress.
                 </p>
               </div>
             </div>
@@ -249,10 +251,10 @@ const Dashboard = ({ user, onLogout }) => {
                       icon: '📊'
                     },
                     { 
-                      label: 'Goals', 
-                      value: overviewStats.goals, 
+                      label: 'Goals (coming soon)', 
+                      value: '--', 
                       color: 'from-purple-500 to-purple-600', 
-                      change: '+0',
+                      change: '--',
                       icon: '🎯'
                     },
                   ]
@@ -307,18 +309,19 @@ const Dashboard = ({ user, onLogout }) => {
                           { title: 'Log Training', desc: 'Record your workout', icon: '🏋️', onClick: () => setShowWorkloadForm(true) },
                           { title: 'Log Recovery', desc: 'Record recovery activities', icon: '🧘', onClick: () => setShowRecoveryForm(true) },
                           { title: 'Workload Dashboard', desc: 'View training load trends', icon: '📊', onClick: () => setActiveTab('workload') },
-                          { title: 'Set Goals', desc: 'Define your training goals', icon: '🎯', onClick: () => alert('Coming in Phase 8') },
+                          { title: 'Set Goals', desc: 'Coming soon — not available yet', icon: '🎯', disabled: true },
                           { title: 'Injury History', desc: 'View your injury records', icon: '🩹', onClick: () => setActiveTab('injuries') },
                         ]
                     ).map((action, index) => (
                       <button 
                         key={index}
-                        onClick={action.onClick}
-                        className="bg-brand-bg-dark border border-slate-700 hover:border-brand-cyan/50 rounded-xl p-6 text-left transition-all duration-300 hover:scale-[1.02] group"
+                        onClick={!action.disabled ? action.onClick : undefined}
+                        disabled={action.disabled}
+                        className={`bg-brand-bg-dark border rounded-xl p-6 text-left transition-all duration-300 ${action.disabled ? 'border-slate-700 opacity-50 cursor-not-allowed' : 'border-slate-700 hover:border-brand-cyan/50 hover:scale-[1.02]'} group`}
                       >
-                        <div className="text-3xl mb-4 group-hover:scale-110 transition-transform">{action.icon}</div>
-                        <h4 className="font-semibold text-white mb-2">{action.title}</h4>
-                        <p className="text-sm text-slate-400">{action.desc}</p>
+                        <div className={`text-3xl mb-4 transition-transform ${action.disabled ? 'text-slate-500' : 'group-hover:scale-110'}`}>{action.icon}</div>
+                        <h4 className={`font-semibold mb-2 ${action.disabled ? 'text-slate-500' : 'text-white'}`}>{action.title}</h4>
+                        <p className={`text-sm ${action.disabled ? 'text-slate-500' : 'text-slate-400'}`}>{action.desc}</p>
                       </button>
                     ))}
                   </div>
@@ -331,11 +334,12 @@ const Dashboard = ({ user, onLogout }) => {
                   <h3 className="text-xl font-bold text-white mb-6">Recent Activity</h3>
                   <div className="space-y-4">
                     {[
-                      { user: 'System', action: 'Phase 7 features available', time: 'Today', type: 'success' },
-                      { user: 'Workload Tracking', action: 'ACWR calculator now active', time: 'Phase 7', type: 'info' },
-                      { user: 'Recovery', action: 'Recovery logging now available', time: 'Phase 7', type: 'success' },
-                      { user: 'Injury Tracking', action: 'Concussion logging now active', time: 'Phase 6', type: 'success' },
-                      { user: 'Admin', action: 'Admin features, reports, and export are live', time: 'Phase 8', type: 'info' },
+                      { user: 'System', action: 'Basic MVP complete and under testing', time: 'Now', type: 'success' },
+                      { user: 'Wellness', action: 'Daily check-in and readiness tracking live', time: 'Now', type: 'success' },
+                      { user: 'Performance', action: 'Performance history and athlete profile views live', time: 'Now', type: 'success' },
+                      { user: 'Injury Tracking', action: 'Injury history and concussion logging available', time: 'Now', type: 'success' },
+                      { user: 'Goals', action: 'Goal setting and planning under development', time: 'Coming Soon', type: 'info' },
+                      { user: 'Prehab', action: 'Prehab recommendation flow pending', time: 'Coming Soon', type: 'info' },
                     ].map((activity, index) => (
                       <div key={index} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-brand-bg-dark/50 transition-colors">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
@@ -408,6 +412,7 @@ const Dashboard = ({ user, onLogout }) => {
               <button
                 key={tab.id}
                 onClick={() => {
+                  if (tab.disabled) return;
                   setActiveTab(tab.id);
                   if (!((tab.id === 'wellness' && user.role === 'athlete') || 
                         (tab.id === 'performance' && user.role !== 'athlete') ||
@@ -415,10 +420,13 @@ const Dashboard = ({ user, onLogout }) => {
                     window.location.hash = '';
                   }
                 }}
+                disabled={tab.disabled}
                 className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${
-                  activeTab === tab.id && window.location.hash === ''
-                    ? 'bg-brand-cyan/20 text-brand-cyan border border-brand-cyan/30'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                  tab.disabled
+                    ? 'text-slate-600 bg-slate-800 cursor-not-allowed opacity-70'
+                    : activeTab === tab.id && window.location.hash === ''
+                      ? 'bg-brand-cyan/20 text-brand-cyan border border-brand-cyan/30'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
                 }`}
               >
                 <span>{tab.icon}</span>

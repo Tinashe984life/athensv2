@@ -1,0 +1,89 @@
+USER SPECIFICATION DOCUMENT
+Athens Sports SAAS Desktop App[AK1.1]
+Client: School-based Athlete Monitoring System
+Prepared by: ECH
+Date: 8 May 2025
+________________________________________
+1. Project Overview
+The Athens Sports SAAS App is a desktop-based application (with optional mobile access) to help schools and coaches track athlete wellness, performance metrics, injuries, and progression. It collects both self-reported and test-based data to generate actionable dashboards for athletes and coaches.
+The MASS Athlete Monitoring program is desktop-based application with mobile access for the purpose of tracking athlete wellness, performance metrics, injuries, and program interventions with an athlete dashboard. The student’s performance data will be used for injury clearance that the athlete will be seeing.
+________________________________________
+2. Target Users
+•	Athletes: Enter daily wellness data, view personal performance dashboards.
+•	Coaches/Teachers: View team dashboards, flag risks, manage data inputs.
+•	Admins: Set up classes, manage user access, export data.
+________________________________________
+3. Functional Requirements
+
+A. Athlete Data Entry
+•	Daily wellness form (sleep, stress, soreness, nutrition, mood, RPE from previous session, Training session duration in minutes).
+•	Performance tests (height, weight, sit & reach, knee to walldorsiflexion, 1min push-up test, 2min sit-ups, strength, jumps- double leg stiff arm jump, single leg countermovement jump, double leg countermovement jump, double leg depth drop into jump, speed[AK2.1])10-40m sprint, 5m-15m sprint, Illinois agility test, T-test, 5-0-5 agility test, yo-yo test, Bronco test.
+•	Injury and concussion logging[AK3.1].
+•	
+B. Coach DashboardSport Scientist Dashboard
+•	View wellness trends and test data.
+•	Red/yellow/green flag system.
+•	Calculate acute:chronic workload ratios.
+•	Assign prehab recommendations.
+•	Filter by class, sport, position, risk.
+
+C- Sport Coach
+•	View team dashboard on wellness
+•	View team testing data
+
+•	
+C. Athlete Dashboard
+•	Personal performance graphs.
+•	Wellness tracker.
+•	Prehab prompts.
+•	Injury/concussion history.
+•	Sport, position, and scholarship goals.
+D. Admin & Backend
+•	Import/export data.
+•	Manage user roles.
+•	Validate and clean data.
+•	Secure database management.
+________________________________________
+4. Non-Functional Requirements
+•	Responsive performance.
+•	Sensitive data anonymised.
+•	Secure authentication.
+•	Simple and intuitive UI.
+•	Scalable to other schools or programs.
+________________________________________
+5. Suggested Features
+•	Mobile version for check-ins.
+•	Notification reminders.
+•	Testing calendar.
+•	Exportable athlete profiles.
+•	Visual progression graphs.
+________________________________________
+6. Sample UI Screens (Descriptions)
+•	Daily Check-In: Form with sliders/toggles for sleep, stress, soreness, nutrition.
+•	Athlete Profile: Tabs for wellness, testing data, injuries, goals.
+•	Coach Dashboard: Filters, flag system, graph panels.
+•	Admin Panel: User import, permission settings.
+________________________________________
+7. Known Challenges
+•	Consistent data entry by students.
+•	Formatting accuracy (commas, decimals).
+•	Simplified data visualisation for teens.
+________________________________________
+8. Suggested Tech Stack
+•	Frontend: Electron + React + TailwindCSS
+•	Backend: Node.js / Python (Flask or FastAPI)
+•	Database: PostgreSQL or Firebase
+•	Charts: Chart.js / D3.js
+•	Authentication: Firebase Auth or custom system
+________________________________________
+9. MVP Checklist
+Feature	Required for MVP?
+Daily Wellness Check	Yes
+Manual Test Entry	Yes
+Athlete Dashboard	Yes
+Coach Dashboard	Yes
+Flagging System	Yes
+Prehab Prompts	Optional
+Injury/Concussion Log	Yes
+Export to CSV/PDF	Yes
+User Management	Yes
