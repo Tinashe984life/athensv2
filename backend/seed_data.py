@@ -3,15 +3,28 @@
 
 from app import create_app, db
 from app.models import User, Athlete, WellnessEntry, InjuryRecord, WorkloadSession, RecoverySession
+from app.services.bootstrap import ensure_super_admin
 import uuid
 from datetime import date, timedelta
 import random
 import json
 
+def seed_super_admin():
+    """Ensure the super admin account exists."""
+    app = create_app()
+    with app.app_context():
+        user, created = ensure_super_admin()
+        if created:
+            print(f"✅ Super admin created: {user.username}")
+        else:
+            print(f"ℹ️  Super admin already exists: {user.username}")
+
+
 def seed_backdated_data():
     app = create_app()
     
     with app.app_context():
+        ensure_super_admin()
         print("=" * 70)
         print("📅 GENERATING 30 DAYS OF BACKDATED WELLNESS DATA")
         print("=" * 70)
@@ -588,4 +601,8 @@ def seed_backdated_data():
         print("\n🚀 Ready for testing and analysis!")
 
 if __name__ == '__main__':
-    seed_backdated_data()
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == '--admin-only':
+        seed_super_admin()
+    else:
+        seed_backdated_data()

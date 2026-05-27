@@ -21,6 +21,9 @@ def create_app():
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY') or 'jwt-secret-key-change-in-production'
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = 86400  # 24 hours
+    app.config['BACKUP_DIR'] = os.environ.get('BACKUP_DIR')
+    app.config['BACKUP_INTERVAL_HOURS'] = float(os.environ.get('BACKUP_INTERVAL_HOURS', '24') or 0)
+    app.config['BACKUP_MAX_KEEP'] = int(os.environ.get('BACKUP_MAX_KEEP', '30'))
     
     # Initialize extensions
     db.init_app(app)
@@ -54,5 +57,15 @@ def create_app():
     app.register_blueprint(workload_bp)
     app.register_blueprint(recovery_bp)
     app.register_blueprint(admin_bp)
+
+    with app.app_context():
+        from app.services.bootstrap import ensure_super_admin
+        try:
+            ensure_super_admin()
+        except Exception:
+            pass
+
+    from app.services.scheduler import start_backup_scheduler
+    start_backup_scheduler(app)
     
     return app
