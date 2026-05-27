@@ -15,7 +15,15 @@ const AdminPanel = ({ user }) => {
     surname: '',
     email: '',
     role: 'athlete',
-    team_id: ''
+    team_id: '',
+    jersey_number: '',
+    age: '',
+    height: '',
+    weight: '',
+    position: '',
+    dominant_side: '',
+    photo_url: '',
+    bio_notes: ''
   });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -60,7 +68,15 @@ const AdminPanel = ({ user }) => {
       surname: '',
       email: '',
       role: 'athlete',
-      team_id: ''
+      team_id: '',
+      jersey_number: '',
+      age: '',
+      height: '',
+      weight: '',
+      position: '',
+      dominant_side: '',
+      photo_url: '',
+      bio_notes: ''
     });
     setMessage('');
   };
@@ -79,7 +95,15 @@ const AdminPanel = ({ user }) => {
       surname: userData.surname || '',
       email: userData.email || '',
       role: userData.role || 'athlete',
-      team_id: userData.team_id || ''
+      team_id: userData.team_id || '',
+      jersey_number: userData.athlete?.jersey_number || '',
+      age: userData.athlete?.age || '',
+      height: userData.athlete?.height || '',
+      weight: userData.athlete?.weight || '',
+      position: userData.athlete?.position || '',
+      dominant_side: userData.athlete?.dominant_side || '',
+      photo_url: userData.athlete?.photo_url || '',
+      bio_notes: userData.athlete?.bio_notes || ''
     });
     setMessage('Editing existing user. Leave password blank to keep current password.');
   };
@@ -102,7 +126,15 @@ const AdminPanel = ({ user }) => {
       surname: formData.surname,
       email: formData.email,
       role: formData.role,
-      team_id: formData.role === 'athlete' ? formData.team_id : undefined
+      team_id: formData.role === 'athlete' ? formData.team_id : undefined,
+      jersey_number: formData.jersey_number || undefined,
+      age: formData.age || undefined,
+      height: formData.height || undefined,
+      weight: formData.weight || undefined,
+      position: formData.position || undefined,
+      dominant_side: formData.dominant_side || undefined,
+      photo_url: formData.photo_url || undefined,
+      bio_notes: formData.bio_notes || undefined
     };
 
     let response;
@@ -151,6 +183,31 @@ const AdminPanel = ({ user }) => {
     }
 
     const blob = new Blob([response.data], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadDatabase = async () => {
+    const response = await admin.downloadDatabase();
+    if (!response || response.success === false) {
+      setMessage(response.message || 'Failed to download database.');
+      return;
+    }
+
+    const contentDisposition = response.headers['content-disposition'];
+    let filename = 'athens.db';
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename=(.*)/);
+      if (match) filename = match[1].replace(/"/g, '');
+    }
+
+    const blob = new Blob([response.data], { type: 'application/octet-stream' });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -247,6 +304,12 @@ const AdminPanel = ({ user }) => {
                   Export {type.charAt(0).toUpperCase() + type.slice(1)} CSV
                 </button>
               ))}
+              <button
+                onClick={handleDownloadDatabase}
+                className="px-4 py-3 rounded-xl bg-amber-600 text-white hover:bg-amber-500"
+              >
+                Download SQLite DB
+              </button>
             </div>
           </div>
         </div>
@@ -329,17 +392,81 @@ const AdminPanel = ({ user }) => {
                 />
               </div>
               {formData.role === 'athlete' && (
-                <select
-                  name="team_id"
-                  value={formData.team_id}
-                  onChange={handleInputChange}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white"
-                >
-                  <option value="">Select Team</option>
-                  {teamsList.map((team) => (
-                    <option key={team.id} value={team.id}>{team.name}</option>
-                  ))}
-                </select>
+                <>
+                  <select
+                    name="team_id"
+                    value={formData.team_id}
+                    onChange={handleInputChange}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white"
+                  >
+                    <option value="">Select Team</option>
+                    {teamsList.map((team) => (
+                      <option key={team.id} value={team.id}>{team.name}</option>
+                    ))}
+                  </select>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <input
+                      name="jersey_number"
+                      value={formData.jersey_number}
+                      onChange={handleInputChange}
+                      placeholder="Jersey number"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white"
+                    />
+                    <input
+                      name="age"
+                      value={formData.age}
+                      onChange={handleInputChange}
+                      placeholder="Age"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white"
+                    />
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <input
+                      name="height"
+                      value={formData.height}
+                      onChange={handleInputChange}
+                      placeholder="Height (cm)"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white"
+                    />
+                    <input
+                      name="weight"
+                      value={formData.weight}
+                      onChange={handleInputChange}
+                      placeholder="Weight (kg)"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white"
+                    />
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <input
+                      name="position"
+                      value={formData.position}
+                      onChange={handleInputChange}
+                      placeholder="Position"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white"
+                    />
+                    <input
+                      name="dominant_side"
+                      value={formData.dominant_side}
+                      onChange={handleInputChange}
+                      placeholder="Dominant side"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white"
+                    />
+                  </div>
+                  <input
+                    name="photo_url"
+                    value={formData.photo_url}
+                    onChange={handleInputChange}
+                    placeholder="Photo URL"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white"
+                  />
+                  <textarea
+                    name="bio_notes"
+                    value={formData.bio_notes}
+                    onChange={handleInputChange}
+                    placeholder="Bio / notes"
+                    className="w-full min-h-[100px] bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white"
+                  />
+                </>
               )}
               <button
                 onClick={handleSaveUser}

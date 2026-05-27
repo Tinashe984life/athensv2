@@ -63,5 +63,17 @@ export const admin = {
       console.error('Error exporting CSV:', error);
       return { success: false, message: error.response?.data?.message || 'Failed to export CSV' };
     }
+  },
+
+  downloadDatabase: async () => {
+    try {
+      const response = await api.get('/admin/download/db', {
+        responseType: 'blob'
+      });
+      return response;
+    } catch (error) {
+      console.error('Error downloading database:', error);
+      return { success: false, message: error.response?.data?.message || 'Failed to download database' };
+    }
   }
 };

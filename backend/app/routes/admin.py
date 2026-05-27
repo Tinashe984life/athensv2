@@ -1,10 +1,11 @@
-from flask import Blueprint, request, jsonify, Response
+from flask import Blueprint, request, jsonify, Response, current_app, send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
 from app.models import User, Athlete, Team, WorkloadSession, RecoverySession, InjuryRecord, PerformanceTest
 import uuid
 import csv
 import io
+import os
 from datetime import datetime
 
 bp = Blueprint('admin', __name__, url_prefix='/api/admin')
@@ -209,14 +210,39 @@ def update_user(user_id):
                 db.session.delete(athlete)
         user.role = data['role']
 
-    if 'team_id' in data and user.role == 'athlete':
-        team = Team.query.get(data['team_id'])
-        if not team:
-            return jsonify({'success': False, 'message': 'Team not found'}), 404
+    if user.role == 'athlete':
         athlete = Athlete.query.filter_by(user_id=user.id).first()
-        if not athlete:
-            return jsonify({'success': False, 'message': 'Athlete profile not found'}), 404
-        athlete.team_id = data['team_id']
+        if not athlete and data.get('role') == 'athlete':
+            athlete = Athlete(
+                id=f"ATH-{uuid.uuid4().hex[:8].upper()}",
+                user_id=user.id,
+                team_id=data.get('team_id') or None
+            )
+            db.session.add(athlete)
+        if athlete:
+            if 'team_id' in data and data['team_id']:
+                team = Team.query.get(data['team_id'])
+                if not team:
+                    return jsonify({'success': False, 'message': 'Team not found'}), 404
+                athlete.team_id = data['team_id']
+            if 'jersey_number' in data:
+                athlete.jersey_number = data.get('jersey_number')
+            if 'age' in data:
+                athlete.age = data.get('age')
+            if 'date_of_birth' in data:
+                athlete.date_of_birth = data.get('date_of_birth')
+            if 'height' in data:
+                athlete.height = data.get('height')
+            if 'weight' in data:
+                athlete.weight = data.get('weight')
+            if 'position' in data:
+                athlete.position = data.get('position')
+            if 'dominant_side' in data:
+                athlete.dominant_side = data.get('dominant_side')
+            if 'photo_url' in data:
+                athlete.photo_url = data.get('photo_url')
+            if 'bio_notes' in data:
+                athlete.bio_notes = data.get('bio_notes')
 
     db.session.commit()
     return jsonify({'success': True, 'user': user.to_dict()})
@@ -369,3 +395,24 @@ def export_csv():
     response = Response(output.getvalue(), mimetype='text/csv')
     response.headers.set('Content-Disposition', f'attachment; filename={filename}')
     return response
+
+
+@bp.route('/download/db', methods=['GET'])
+@jwt_required()
+def download_database():
+    current_user = require_admin()
+    if not current_user:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+
+    database_uri = current_app.config.get('SQLALCHEMY_DATABASE_URI', '')
+    if not database_uri.startswith('sqlite:///'):
+        return jsonify({'success': False, 'message': 'Database download is only available for SQLite deployments'}), 400
+
+    db_path = database_uri.replace('sqlite:///', '', 1)
+    if not os.path.isabs(db_path):
+        db_path = os.path.abspath(db_path)
+
+    if not os.path.exists(db_path):
+        return jsonify({'success': False, 'message': 'Database file not found'}), 404
+
+    return send_file(db_path, as_attachment=True, download_name=os.path.basename(db_path), mimetype='application/octet-stream')
