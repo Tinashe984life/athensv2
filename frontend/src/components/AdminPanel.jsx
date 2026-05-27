@@ -2,11 +2,40 @@ import React, { useState, useEffect } from 'react';
 import { admin } from '../services/admin';
 import { teams } from '../services/api';
 
+const formatBytes = (bytes) => {
+  if (!bytes && bytes !== 0) return '—';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const formatDateTime = (iso) => {
+  if (!iso) return 'Never';
+  try {
+    return new Date(iso).toLocaleString();
+  } catch {
+    return iso;
+  }
+};
+
+const roleLabel = (item) => {
+  if (item.role === 'admin') {
+    return item.is_super_admin ? 'Super Admin' : 'Team Manager';
+  }
+  return item.role;
+};
+
 const AdminPanel = ({ user }) => {
+  const [viewerIsSuperAdmin, setViewerIsSuperAdmin] = useState(user?.is_super_admin === true);
+  const isSuperAdmin = viewerIsSuperAdmin;
+  const isTeamManager = !isSuperAdmin && (user?.is_team_manager === true || user?.role === 'admin');
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
   const [teamsList, setTeamsList] = useState([]);
   const [reports, setReports] = useState(null);
+  const [systemHealth, setSystemHealth] = useState(null);
+  const [backups, setBackups] = useState([]);
+  const [backupLoading, setBackupLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [formData, setFormData] = useState({
     username: '',
@@ -15,7 +44,15 @@ const AdminPanel = ({ user }) => {
     surname: '',
     email: '',
     role: 'athlete',
-    team_id: ''
+    team_id: '',
+    jersey_number: '',
+    age: '',
+    height: '',
+    weight: '',
+    position: '',
+    dominant_side: '',
+    photo_url: '',
+    bio_notes: ''
   });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -27,6 +64,16 @@ const AdminPanel = ({ user }) => {
   const loadData = async () => {
     setLoading(true);
     await Promise.all([loadUsers(), loadTeams(), loadReports()]);
+    const healthResponse = await admin.getSystemHealth();
+    if (healthResponse.success) {
+      setSystemHealth(healthResponse.health);
+      if (healthResponse.health.viewer_is_super_admin !== undefined) {
+        setViewerIsSuperAdmin(healthResponse.health.viewer_is_super_admin);
+      }
+      if (healthResponse.health.viewer_is_super_admin) {
+        await loadBackups();
+      }
+    }
     setLoading(false);
   };
 
@@ -51,6 +98,46 @@ const AdminPanel = ({ user }) => {
     }
   };
 
+  const loadBackups = async () => {
+    const response = await admin.getBackups();
+    if (response.success) {
+      setBackups(response.backups || []);
+    }
+  };
+
+  const handleTakeBackup = async () => {
+    setBackupLoading(true);
+    const response = await admin.createBackup();
+    if (response.success) {
+      setMessage(`Backup created: ${response.backup.filename}`);
+      await loadBackups();
+      const healthResponse = await admin.getSystemHealth();
+      if (healthResponse.success) {
+        setSystemHealth(healthResponse.health);
+      }
+    } else {
+      setMessage(response.message || 'Backup failed.');
+    }
+    setBackupLoading(false);
+  };
+
+  const handleDownloadBackup = async (filename) => {
+    const response = await admin.downloadBackup(filename);
+    if (!response || response.success === false) {
+      setMessage(response.message || 'Failed to download backup.');
+      return;
+    }
+    const blob = new Blob([response.data], { type: 'application/octet-stream' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
   const resetForm = () => {
     setSelectedUser(null);
     setFormData({
@@ -60,7 +147,15 @@ const AdminPanel = ({ user }) => {
       surname: '',
       email: '',
       role: 'athlete',
-      team_id: ''
+      team_id: '',
+      jersey_number: '',
+      age: '',
+      height: '',
+      weight: '',
+      position: '',
+      dominant_side: '',
+      photo_url: '',
+      bio_notes: ''
     });
     setMessage('');
   };
@@ -72,14 +167,26 @@ const AdminPanel = ({ user }) => {
 
   const handleSelectUser = (userData) => {
     setSelectedUser(userData);
+    let editRole = userData.role || 'athlete';
+    if (userData.role === 'admin' && userData.is_team_manager) {
+      editRole = 'team_manager';
+    }
     setFormData({
       username: userData.username || '',
       password: '',
       name: userData.name || '',
       surname: userData.surname || '',
       email: userData.email || '',
-      role: userData.role || 'athlete',
-      team_id: userData.team_id || ''
+      role: editRole,
+      team_id: userData.team_id || '',
+      jersey_number: userData.athlete?.jersey_number || '',
+      age: userData.athlete?.age || '',
+      height: userData.athlete?.height || '',
+      weight: userData.athlete?.weight || '',
+      position: userData.athlete?.position || '',
+      dominant_side: userData.athlete?.dominant_side || '',
+      photo_url: userData.athlete?.photo_url || '',
+      bio_notes: userData.athlete?.bio_notes || ''
     });
     setMessage('Editing existing user. Leave password blank to keep current password.');
   };
@@ -102,7 +209,15 @@ const AdminPanel = ({ user }) => {
       surname: formData.surname,
       email: formData.email,
       role: formData.role,
-      team_id: formData.role === 'athlete' ? formData.team_id : undefined
+      team_id: formData.role === 'athlete' ? formData.team_id : undefined,
+      jersey_number: formData.jersey_number || undefined,
+      age: formData.age || undefined,
+      height: formData.height || undefined,
+      weight: formData.weight || undefined,
+      position: formData.position || undefined,
+      dominant_side: formData.dominant_side || undefined,
+      photo_url: formData.photo_url || undefined,
+      bio_notes: formData.bio_notes || undefined
     };
 
     let response;
@@ -161,6 +276,31 @@ const AdminPanel = ({ user }) => {
     window.URL.revokeObjectURL(url);
   };
 
+  const handleDownloadDatabase = async () => {
+    const response = await admin.downloadDatabase();
+    if (!response || response.success === false) {
+      setMessage(response.message || 'Failed to download database.');
+      return;
+    }
+
+    const contentDisposition = response.headers['content-disposition'];
+    let filename = 'athens.db';
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename=(.*)/);
+      if (match) filename = match[1].replace(/"/g, '');
+    }
+
+    const blob = new Blob([response.data], { type: 'application/octet-stream' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -174,9 +314,59 @@ const AdminPanel = ({ user }) => {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-2xl font-bold text-white">Admin Panel</h2>
-          <p className="text-slate-400">Manage users, teams, exports, and platform reports.</p>
+          <p className="text-slate-400">
+            {isSuperAdmin
+              ? 'Full platform access: users, backups, exports, and system health.'
+              : 'Team manager: manage athletes and coaches (passwords, assignments).'}
+          </p>
         </div>
       </div>
+
+      {systemHealth && (
+        <div className="bg-brand-bg-light border border-brand-border rounded-2xl p-6">
+          <h3 className="text-lg font-semibold text-white mb-4">System Health & Warnings</h3>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-4">
+            <div className="rounded-xl bg-slate-900/60 p-4">
+              <p className="text-sm text-slate-400">Database</p>
+              <p className={`text-lg font-semibold ${systemHealth.is_sqlite ? 'text-amber-300' : 'text-emerald-300'}`}>
+                {systemHealth.is_sqlite ? 'SQLite' : systemHealth.database_uri_type}
+              </p>
+            </div>
+            <div className="rounded-xl bg-slate-900/60 p-4">
+              <p className="text-sm text-slate-400">Filesystem</p>
+              <p className={`text-lg font-semibold ${systemHealth.is_ephemeral_filesystem ? 'text-red-300' : 'text-emerald-300'}`}>
+                {systemHealth.is_ephemeral_filesystem ? 'Ephemeral' : 'Persistent'}
+              </p>
+            </div>
+            <div className="rounded-xl bg-slate-900/60 p-4">
+              <p className="text-sm text-slate-400">Last Backup</p>
+              <p className="text-lg font-semibold text-white">{formatDateTime(systemHealth.last_backup_at)}</p>
+            </div>
+            <div className="rounded-xl bg-slate-900/60 p-4">
+              <p className="text-sm text-slate-400">DB Size</p>
+              <p className="text-lg font-semibold text-white">{formatBytes(systemHealth.db_size_bytes)}</p>
+            </div>
+          </div>
+          {systemHealth.warnings?.length > 0 ? (
+            <div className="space-y-2">
+              {systemHealth.warnings.map((warning) => (
+                <div
+                  key={warning.code}
+                  className={`rounded-lg border p-3 text-sm ${
+                    warning.level === 'critical'
+                      ? 'border-red-500/40 bg-red-500/10 text-red-100'
+                      : 'border-amber-500/40 bg-amber-500/10 text-amber-100'
+                  }`}
+                >
+                  {warning.message}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-emerald-300 text-sm">No critical warnings detected.</p>
+          )}
+        </div>
+      )}
 
       {message && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-100">
@@ -215,18 +405,25 @@ const AdminPanel = ({ user }) => {
                   {users.map((item) => (
                     <tr key={item.id} className="border-b border-slate-800 hover:bg-slate-900/30">
                       <td className="py-3 px-4 text-white">{item.name} {item.surname}</td>
-                      <td className="py-3 px-4 capitalize">{item.role}</td>
+                      <td className="py-3 px-4 capitalize">{roleLabel(item)}</td>
                       <td className="py-3 px-4">{item.email || '—'}</td>
                       <td className="py-3 px-4">{item.team_id ? teamsList.find(team => team.id === item.team_id)?.name || item.team_id : '—'}</td>
                       <td className="py-3 px-4 space-x-2">
-                        <button
-                          onClick={() => handleSelectUser(item)}
-                          className="px-3 py-1 rounded-lg bg-brand-cyan text-white text-sm"
-                        >Edit</button>
-                        <button
-                          onClick={() => handleDeleteUser(item)}
-                          className="px-3 py-1 rounded-lg bg-red-500/20 text-red-300 text-sm hover:bg-red-500/30"
-                        >Delete</button>
+                        {(isSuperAdmin || (isTeamManager && ['coach', 'athlete'].includes(item.role))) && (
+                          <>
+                            <button
+                              onClick={() => handleSelectUser(item)}
+                              className="px-3 py-1 rounded-lg bg-brand-cyan text-white text-sm"
+                            >Edit</button>
+                            <button
+                              onClick={() => handleDeleteUser(item)}
+                              className="px-3 py-1 rounded-lg bg-red-500/20 text-red-300 text-sm hover:bg-red-500/30"
+                            >Delete</button>
+                          </>
+                        )}
+                        {isTeamManager && !['coach', 'athlete'].includes(item.role) && (
+                          <span className="text-xs text-slate-500">Restricted</span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -235,20 +432,79 @@ const AdminPanel = ({ user }) => {
             </div>
           </div>
 
-          <div className="bg-brand-bg-light border border-brand-border rounded-2xl p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">Export Data</h3>
-            <div className="grid gap-3 sm:grid-cols-3">
-              {['users', 'athletes', 'teams'].map((type) => (
-                <button
-                  key={type}
-                  onClick={() => handleExport(type)}
-                  className="px-4 py-3 rounded-xl bg-slate-800 text-white hover:bg-slate-700"
-                >
-                  Export {type.charAt(0).toUpperCase() + type.slice(1)} CSV
-                </button>
-              ))}
-            </div>
-          </div>
+          {isSuperAdmin && (
+            <>
+              <div className="bg-brand-bg-light border border-brand-border rounded-2xl p-6">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Database Backups</h3>
+                    <p className="text-sm text-slate-400">Timestamped SQLite snapshots before redeploys.</p>
+                  </div>
+                  <button
+                    onClick={handleTakeBackup}
+                    disabled={backupLoading}
+                    className="px-4 py-3 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-60"
+                  >
+                    {backupLoading ? 'Creating backup...' : 'Take Backup Now'}
+                  </button>
+                </div>
+                {backups.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-left text-sm text-slate-300">
+                      <thead>
+                        <tr className="border-b border-slate-700 text-slate-500">
+                          <th className="py-2 px-3">File</th>
+                          <th className="py-2 px-3">Created</th>
+                          <th className="py-2 px-3">Size</th>
+                          <th className="py-2 px-3">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {backups.map((entry) => (
+                          <tr key={entry.filename} className="border-b border-slate-800">
+                            <td className="py-2 px-3 text-white font-mono text-xs">{entry.filename}</td>
+                            <td className="py-2 px-3">{formatDateTime(entry.created_at)}</td>
+                            <td className="py-2 px-3">{formatBytes(entry.size_bytes)}</td>
+                            <td className="py-2 px-3">
+                              <button
+                                onClick={() => handleDownloadBackup(entry.filename)}
+                                className="px-3 py-1 rounded-lg bg-slate-700 text-white text-sm hover:bg-slate-600"
+                              >
+                                Download
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-slate-400 text-sm">No backups yet. Take one before your next deploy.</p>
+                )}
+              </div>
+
+              <div className="bg-brand-bg-light border border-brand-border rounded-2xl p-6">
+                <h3 className="text-lg font-semibold text-white mb-4">Export Data</h3>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {['users', 'athletes', 'teams'].map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => handleExport(type)}
+                      className="px-4 py-3 rounded-xl bg-slate-800 text-white hover:bg-slate-700"
+                    >
+                      Export {type.charAt(0).toUpperCase() + type.slice(1)} CSV
+                    </button>
+                  ))}
+                  <button
+                    onClick={handleDownloadDatabase}
+                    className="px-4 py-3 rounded-xl bg-amber-600 text-white hover:bg-amber-500"
+                  >
+                    Download SQLite DB
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="space-y-6">
@@ -315,7 +571,8 @@ const AdminPanel = ({ user }) => {
                   onChange={handleInputChange}
                   className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white"
                 >
-                  <option value="admin">Admin</option>
+                  {isSuperAdmin && <option value="team_manager">Team Manager</option>}
+                  {isSuperAdmin && <option value="admin">Admin (legacy)</option>}
                   <option value="coach">Coach</option>
                   <option value="athlete">Athlete</option>
                 </select>
@@ -329,17 +586,81 @@ const AdminPanel = ({ user }) => {
                 />
               </div>
               {formData.role === 'athlete' && (
-                <select
-                  name="team_id"
-                  value={formData.team_id}
-                  onChange={handleInputChange}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white"
-                >
-                  <option value="">Select Team</option>
-                  {teamsList.map((team) => (
-                    <option key={team.id} value={team.id}>{team.name}</option>
-                  ))}
-                </select>
+                <>
+                  <select
+                    name="team_id"
+                    value={formData.team_id}
+                    onChange={handleInputChange}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white"
+                  >
+                    <option value="">Select Team</option>
+                    {teamsList.map((team) => (
+                      <option key={team.id} value={team.id}>{team.name}</option>
+                    ))}
+                  </select>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <input
+                      name="jersey_number"
+                      value={formData.jersey_number}
+                      onChange={handleInputChange}
+                      placeholder="Jersey number"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white"
+                    />
+                    <input
+                      name="age"
+                      value={formData.age}
+                      onChange={handleInputChange}
+                      placeholder="Age"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white"
+                    />
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <input
+                      name="height"
+                      value={formData.height}
+                      onChange={handleInputChange}
+                      placeholder="Height (cm)"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white"
+                    />
+                    <input
+                      name="weight"
+                      value={formData.weight}
+                      onChange={handleInputChange}
+                      placeholder="Weight (kg)"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white"
+                    />
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <input
+                      name="position"
+                      value={formData.position}
+                      onChange={handleInputChange}
+                      placeholder="Position"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white"
+                    />
+                    <input
+                      name="dominant_side"
+                      value={formData.dominant_side}
+                      onChange={handleInputChange}
+                      placeholder="Dominant side"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white"
+                    />
+                  </div>
+                  <input
+                    name="photo_url"
+                    value={formData.photo_url}
+                    onChange={handleInputChange}
+                    placeholder="Photo URL"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white"
+                  />
+                  <textarea
+                    name="bio_notes"
+                    value={formData.bio_notes}
+                    onChange={handleInputChange}
+                    placeholder="Bio / notes"
+                    className="w-full min-h-[100px] bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white"
+                  />
+                </>
               )}
               <button
                 onClick={handleSaveUser}

@@ -1,25 +1,50 @@
-from flask import Blueprint, request, jsonify, Response
+from flask import Blueprint, request, jsonify, Response, current_app, send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
 from app.models import User, Athlete, Team, WorkloadSession, RecoverySession, InjuryRecord, PerformanceTest
+from app.authz import (
+    is_super_admin,
+    is_team_manager,
+    is_any_admin,
+    enrich_user_payload,
+    can_manage_target_user,
+    can_assign_role,
+    is_ephemeral_filesystem,
+)
+from app.services.backup import (
+    create_snapshot,
+    list_snapshots,
+    get_snapshot_path,
+    backup_status,
+    resolve_sqlite_path,
+    is_sqlite_deployment,
+)
 import uuid
 import csv
 import io
+import os
 from datetime import datetime
 
 bp = Blueprint('admin', __name__, url_prefix='/api/admin')
 
 
-def require_admin():
+def get_current_admin():
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
-    if not current_user or current_user.role != 'admin':
+    if not current_user or not is_any_admin(current_user):
         return None
     return current_user
 
 
+def require_super_admin():
+    user = get_current_admin()
+    if not user or not is_super_admin(user):
+        return None
+    return user
+
+
 def serialize_user(user):
-    data = user.to_dict()
+    data = enrich_user_payload(user)
     if user.role == 'athlete':
         athlete = Athlete.query.filter_by(user_id=user.id).first()
         if athlete:
@@ -40,11 +65,14 @@ def generate_unique_username(base_username):
     return username
 
 
+def _forbidden_team_manager_action(message='This action requires super admin privileges'):
+    return jsonify({'success': False, 'message': message}), 403
+
+
 @bp.route('/users', methods=['GET'])
 @jwt_required()
 def get_users():
-    """Get all users for admin"""
-    current_user = require_admin()
+    current_user = get_current_admin()
     if not current_user:
         return jsonify({'success': False, 'message': 'Unauthorized'}), 403
 
@@ -54,6 +82,9 @@ def get_users():
         query = query.filter_by(role=role)
 
     users = query.order_by(User.created_at.desc()).all()
+    if is_team_manager(current_user):
+        users = [u for u in users if can_manage_target_user(current_user, u) or u.id == current_user.id]
+
     return jsonify({
         'success': True,
         'users': [serialize_user(user) for user in users],
@@ -64,7 +95,7 @@ def get_users():
 @bp.route('/users/<user_id>', methods=['GET'])
 @jwt_required()
 def get_user(user_id):
-    current_user = require_admin()
+    current_user = get_current_admin()
     if not current_user:
         return jsonify({'success': False, 'message': 'Unauthorized'}), 403
 
@@ -72,22 +103,17 @@ def get_user(user_id):
     if not user:
         return jsonify({'success': False, 'message': 'User not found'}), 404
 
-    user_data = user.to_dict()
-    if user.role == 'athlete':
-        athlete = Athlete.query.filter_by(user_id=user.id).first()
-        if athlete:
-            user_data['athlete'] = athlete.to_dict()
-    elif user.role == 'coach':
-        teams = Team.query.filter_by(coach_id=user.id).all()
-        user_data['teams'] = [team.to_dict() for team in teams]
+    if not can_manage_target_user(current_user, user) and user.id != current_user.id:
+        return _forbidden_team_manager_action('You cannot view this user')
 
+    user_data = serialize_user(user)
     return jsonify({'success': True, 'user': user_data})
 
 
 @bp.route('/users', methods=['POST'])
 @jwt_required()
 def create_user():
-    current_user = require_admin()
+    current_user = get_current_admin()
     if not current_user:
         return jsonify({'success': False, 'message': 'Unauthorized'}), 403
 
@@ -98,8 +124,14 @@ def create_user():
             return jsonify({'success': False, 'message': f'Missing required field: {field}'}), 400
 
     role = data['role']
-    if role not in ['admin', 'coach', 'athlete']:
-        return jsonify({'success': False, 'message': 'Invalid role'}), 400
+    if role == 'team_manager':
+        role = 'admin'
+
+    if not can_assign_role(current_user, role):
+        return _forbidden_team_manager_action(
+            'Team managers can only create coach and athlete accounts. '
+            'Only the super admin can create team manager accounts.'
+        )
 
     username = data.get('username')
     if username:
@@ -160,7 +192,7 @@ def create_user():
 
     db.session.commit()
 
-    response = user.to_dict()
+    response = serialize_user(user)
     if role == 'athlete':
         response['credentials'] = {'username': username, 'password': password}
 
@@ -170,13 +202,16 @@ def create_user():
 @bp.route('/users/<user_id>', methods=['PUT'])
 @jwt_required()
 def update_user(user_id):
-    current_user = require_admin()
+    current_user = get_current_admin()
     if not current_user:
         return jsonify({'success': False, 'message': 'Unauthorized'}), 403
 
     user = User.query.get(user_id)
     if not user:
         return jsonify({'success': False, 'message': 'User not found'}), 404
+
+    if not can_manage_target_user(current_user, user):
+        return _forbidden_team_manager_action('You cannot modify this user')
 
     data = request.get_json() or {}
     if 'name' in data:
@@ -198,40 +233,77 @@ def update_user(user_id):
     if 'password' in data and data['password']:
         user.set_password(data['password'])
 
-    if 'role' in data and data['role'] in ['admin', 'coach', 'athlete'] and data['role'] != user.role:
-        if user.role == 'coach':
-            active_teams = Team.query.filter_by(coach_id=user.id).all()
-            if active_teams:
-                return jsonify({'success': False, 'message': 'Reassign or remove teams before changing coach role'}), 400
-        if user.role == 'athlete':
-            athlete = Athlete.query.filter_by(user_id=user.id).first()
-            if athlete:
-                db.session.delete(athlete)
-        user.role = data['role']
+    if 'role' in data:
+        new_role = data['role']
+        if new_role == 'team_manager':
+            new_role = 'admin'
+        if new_role != user.role:
+            if not can_assign_role(current_user, new_role):
+                return _forbidden_team_manager_action('You cannot assign this role')
+            if user.role == 'coach':
+                active_teams = Team.query.filter_by(coach_id=user.id).all()
+                if active_teams:
+                    return jsonify({'success': False, 'message': 'Reassign or remove teams before changing coach role'}), 400
+            if user.role == 'athlete':
+                athlete = Athlete.query.filter_by(user_id=user.id).first()
+                if athlete:
+                    db.session.delete(athlete)
+            user.role = new_role
 
-    if 'team_id' in data and user.role == 'athlete':
-        team = Team.query.get(data['team_id'])
-        if not team:
-            return jsonify({'success': False, 'message': 'Team not found'}), 404
+    if user.role == 'athlete':
         athlete = Athlete.query.filter_by(user_id=user.id).first()
-        if not athlete:
-            return jsonify({'success': False, 'message': 'Athlete profile not found'}), 404
-        athlete.team_id = data['team_id']
+        if not athlete and data.get('role') == 'athlete':
+            athlete = Athlete(
+                id=f"ATH-{uuid.uuid4().hex[:8].upper()}",
+                user_id=user.id,
+                team_id=data.get('team_id') or None
+            )
+            db.session.add(athlete)
+        if athlete:
+            if 'team_id' in data and data['team_id']:
+                team = Team.query.get(data['team_id'])
+                if not team:
+                    return jsonify({'success': False, 'message': 'Team not found'}), 404
+                athlete.team_id = data['team_id']
+            if 'jersey_number' in data:
+                athlete.jersey_number = data.get('jersey_number')
+            if 'age' in data:
+                athlete.age = data.get('age')
+            if 'date_of_birth' in data:
+                athlete.date_of_birth = data.get('date_of_birth')
+            if 'height' in data:
+                athlete.height = data.get('height')
+            if 'weight' in data:
+                athlete.weight = data.get('weight')
+            if 'position' in data:
+                athlete.position = data.get('position')
+            if 'dominant_side' in data:
+                athlete.dominant_side = data.get('dominant_side')
+            if 'photo_url' in data:
+                athlete.photo_url = data.get('photo_url')
+            if 'bio_notes' in data:
+                athlete.bio_notes = data.get('bio_notes')
 
     db.session.commit()
-    return jsonify({'success': True, 'user': user.to_dict()})
+    return jsonify({'success': True, 'user': serialize_user(user)})
 
 
 @bp.route('/users/<user_id>', methods=['DELETE'])
 @jwt_required()
 def delete_user(user_id):
-    current_user = require_admin()
+    current_user = get_current_admin()
     if not current_user:
         return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+
+    if current_user.id == user_id:
+        return jsonify({'success': False, 'message': 'You cannot delete your own account'}), 400
 
     user = User.query.get(user_id)
     if not user:
         return jsonify({'success': False, 'message': 'User not found'}), 404
+
+    if not can_manage_target_user(current_user, user):
+        return _forbidden_team_manager_action('You cannot delete this user')
 
     if user.role == 'coach':
         teams = Team.query.filter_by(coach_id=user.id).all()
@@ -251,7 +323,7 @@ def delete_user(user_id):
 @bp.route('/validate/username', methods=['GET'])
 @jwt_required()
 def validate_username():
-    current_user = require_admin()
+    current_user = get_current_admin()
     if not current_user:
         return jsonify({'success': False, 'message': 'Unauthorized'}), 403
 
@@ -263,7 +335,7 @@ def validate_username():
 @bp.route('/validate/email', methods=['GET'])
 @jwt_required()
 def validate_email():
-    current_user = require_admin()
+    current_user = get_current_admin()
     if not current_user:
         return jsonify({'success': False, 'message': 'Unauthorized'}), 403
 
@@ -275,7 +347,7 @@ def validate_email():
 @bp.route('/reports/summary', methods=['GET'])
 @jwt_required()
 def get_summary_report():
-    current_user = require_admin()
+    current_user = get_current_admin()
     if not current_user:
         return jsonify({'success': False, 'message': 'Unauthorized'}), 403
 
@@ -311,12 +383,122 @@ def get_summary_report():
     })
 
 
+@bp.route('/system/health', methods=['GET'])
+@jwt_required()
+def get_system_health():
+    current_user = get_current_admin()
+    if not current_user:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+
+    database_uri = current_app.config.get('SQLALCHEMY_DATABASE_URI', '')
+    is_sqlite = database_uri.startswith('sqlite:///')
+    ephemeral = is_ephemeral_filesystem()
+    backup_info = backup_status()
+
+    db_path = resolve_sqlite_path()
+    db_size_bytes = os.path.getsize(db_path) if db_path else None
+
+    warnings = []
+    if is_sqlite:
+        warnings.append({
+            'level': 'warning',
+            'code': 'sqlite',
+            'message': 'Running on SQLite. Data may be lost on redeploy unless you use persistent storage or regular backups.',
+        })
+    if ephemeral:
+        warnings.append({
+            'level': 'critical',
+            'code': 'ephemeral_fs',
+            'message': 'Filesystem appears ephemeral. Database and backup files may not survive container restarts.',
+        })
+    if is_sqlite and not backup_info.get('last_backup_at'):
+        warnings.append({
+            'level': 'critical',
+            'code': 'no_backup',
+            'message': 'No database backup has been taken yet. Take a backup before redeploying.',
+        })
+    elif backup_info.get('last_backup_at'):
+        from datetime import datetime, timezone, timedelta
+        try:
+            last = datetime.fromisoformat(backup_info['last_backup_at'].replace('Z', '+00:00'))
+            if datetime.now(timezone.utc) - last > timedelta(hours=24):
+                warnings.append({
+                    'level': 'warning',
+                    'code': 'stale_backup',
+                    'message': 'Last backup is more than 24 hours old. Consider taking a new snapshot.',
+                })
+        except ValueError:
+            pass
+
+    return jsonify({
+        'success': True,
+        'health': {
+            'is_sqlite': is_sqlite,
+            'is_ephemeral_filesystem': ephemeral,
+            'database_uri_type': 'sqlite' if is_sqlite else 'other',
+            'db_size_bytes': db_size_bytes,
+            'last_backup_at': backup_info.get('last_backup_at'),
+            'backup_count': backup_info.get('backup_count', 0),
+            'scheduled_backups_enabled': backup_info.get('scheduled_backups_enabled', False),
+            'warnings': warnings,
+            'viewer_is_super_admin': is_super_admin(current_user),
+            'viewer_admin_scope': current_user and (
+                'full' if is_super_admin(current_user) else 'athlete_ops'
+            ),
+        }
+    })
+
+
+@bp.route('/backups', methods=['GET'])
+@jwt_required()
+def list_backups():
+    current_user = require_super_admin()
+    if not current_user:
+        return _forbidden_team_manager_action()
+
+    snapshots, last_backup_at = list_snapshots()
+    return jsonify({
+        'success': True,
+        'backups': snapshots,
+        'last_backup_at': last_backup_at,
+    })
+
+
+@bp.route('/backups', methods=['POST'])
+@jwt_required()
+def take_backup():
+    current_user = require_super_admin()
+    if not current_user:
+        return _forbidden_team_manager_action()
+
+    try:
+        entry = create_snapshot(trigger='manual')
+    except ValueError as exc:
+        return jsonify({'success': False, 'message': str(exc)}), 400
+
+    return jsonify({'success': True, 'backup': entry}), 201
+
+
+@bp.route('/backups/<filename>/download', methods=['GET'])
+@jwt_required()
+def download_backup(filename):
+    current_user = require_super_admin()
+    if not current_user:
+        return _forbidden_team_manager_action()
+
+    path = get_snapshot_path(filename)
+    if not path:
+        return jsonify({'success': False, 'message': 'Backup not found'}), 404
+
+    return send_file(path, as_attachment=True, download_name=filename, mimetype='application/octet-stream')
+
+
 @bp.route('/export/csv', methods=['GET'])
 @jwt_required()
 def export_csv():
-    current_user = require_admin()
+    current_user = require_super_admin()
     if not current_user:
-        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+        return _forbidden_team_manager_action('CSV export requires super admin privileges')
 
     export_type = request.args.get('type', 'users')
     output = io.StringIO()
@@ -369,3 +551,23 @@ def export_csv():
     response = Response(output.getvalue(), mimetype='text/csv')
     response.headers.set('Content-Disposition', f'attachment; filename={filename}')
     return response
+
+
+@bp.route('/download/db', methods=['GET'])
+@jwt_required()
+def download_database():
+    current_user = require_super_admin()
+    if not current_user:
+        return _forbidden_team_manager_action('Database download requires super admin privileges')
+
+    if not is_sqlite_deployment():
+        return jsonify({'success': False, 'message': 'Database download is only available for SQLite deployments'}), 400
+
+    db_path = resolve_sqlite_path()
+    if not db_path or not os.path.exists(db_path):
+        return jsonify({
+            'success': False,
+            'message': f'SQLite database file not found. Looked under {current_app.instance_path}',
+        }), 400
+
+    return send_file(db_path, as_attachment=True, download_name=os.path.basename(db_path), mimetype='application/octet-stream')

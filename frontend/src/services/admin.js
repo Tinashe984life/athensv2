@@ -63,5 +63,59 @@ export const admin = {
       console.error('Error exporting CSV:', error);
       return { success: false, message: error.response?.data?.message || 'Failed to export CSV' };
     }
+  },
+
+  downloadDatabase: async () => {
+    try {
+      const response = await api.get('/admin/download/db', {
+        responseType: 'blob'
+      });
+      return response;
+    } catch (error) {
+      console.error('Error downloading database:', error);
+      return { success: false, message: error.response?.data?.message || 'Failed to download database' };
+    }
+  },
+
+  getSystemHealth: async () => {
+    try {
+      const response = await api.get('/admin/system/health');
+      return response.data;
+    } catch (error) {
+      console.error('Error getting system health:', error);
+      return { success: false, message: error.response?.data?.message || 'Failed to get system health' };
+    }
+  },
+
+  getBackups: async () => {
+    try {
+      const response = await api.get('/admin/backups');
+      return response.data;
+    } catch (error) {
+      console.error('Error listing backups:', error);
+      return { success: false, message: error.response?.data?.message || 'Failed to list backups' };
+    }
+  },
+
+  createBackup: async () => {
+    try {
+      const response = await api.post('/admin/backups');
+      return response.data;
+    } catch (error) {
+      console.error('Error creating backup:', error);
+      return { success: false, message: error.response?.data?.message || 'Failed to create backup' };
+    }
+  },
+
+  downloadBackup: async (filename) => {
+    try {
+      const response = await api.get(`/admin/backups/${encodeURIComponent(filename)}/download`, {
+        responseType: 'blob'
+      });
+      return response;
+    } catch (error) {
+      console.error('Error downloading backup:', error);
+      return { success: false, message: error.response?.data?.message || 'Failed to download backup' };
+    }
   }
 };

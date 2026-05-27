@@ -37,6 +37,9 @@ export default api;
 export const auth = {
   login: (username, password) => 
     api.post('/auth/login', { username, password }),
+
+  verifySecurity: (payload) =>
+    api.post('/auth/verify-security', payload),
   
   register: (userData) => 
     api.post('/auth/register', userData),
