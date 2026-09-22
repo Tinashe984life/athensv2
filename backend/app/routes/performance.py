@@ -51,6 +51,7 @@ def create_performance_test():
             id=str(uuid.uuid4()),
             athlete_id=athlete.id,
             test_date=test_date,  # Now a date object
+            term=data.get('term'),
             test_type=data['test_type'],
             
             # Anthropometric measurements
@@ -70,6 +71,8 @@ def create_performance_test():
             sprint_10m=data.get('sprint_10m'),
             sprint_20m=data.get('sprint_20m'),
             sprint_40m=data.get('sprint_40m'),
+            sprint_5m=data.get('sprint_5m'),
+            sprint_15m=data.get('sprint_15m'),
             
             # Agility tests
             agility_t_test=data.get('agility_t_test'),
@@ -81,6 +84,9 @@ def create_performance_test():
             broad_jump=data.get('broad_jump'),
             single_leg_jump_left=data.get('single_leg_jump_left'),
             single_leg_jump_right=data.get('single_leg_jump_right'),
+            stiff_arm_jump=data.get('stiff_arm_jump'),
+            cmj=data.get('cmj'),
+            depth_drop_jump=data.get('depth_drop_jump'),
             
             # Endurance tests
             yo_yo_test=data.get('yo_yo_test'),
@@ -88,6 +94,7 @@ def create_performance_test():
             
             # Flexibility tests
             sit_and_reach=data.get('sit_and_reach'),
+            knee_to_wall=data.get('knee_to_wall'),
             dorsiflexion_left=data.get('dorsiflexion_left'),
             dorsiflexion_right=data.get('dorsiflexion_right'),
             
@@ -120,6 +127,7 @@ def get_performance_tests():
         
         athlete_id = request.args.get('athlete_id')
         test_type = request.args.get('test_type')
+        term = request.args.get('term', type=int)
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
         limit = request.args.get('limit', 50, type=int)
@@ -173,6 +181,8 @@ def get_performance_tests():
             # Apply filters
             if test_type:
                 query = query.filter_by(test_type=test_type)
+            if term:
+                query = query.filter_by(term=term)
             
             # Apply date filters
             if start_date:
@@ -196,6 +206,8 @@ def get_performance_tests():
             
             if test_type:
                 query = query.filter_by(test_type=test_type)
+            if term:
+                query = query.filter_by(term=term)
             
             # Apply date filters
             if start_date:
@@ -295,13 +307,14 @@ def update_performance_test(test_id):
         
         # Update fields
         update_fields = [
-            'test_type', 'height', 'weight', 'body_fat_percentage',
+            'term', 'test_type', 'height', 'weight', 'body_fat_percentage',
             'bench_press_1rm', 'squat_1rm', 'deadlift_1rm', 'pull_ups_max',
             'push_ups_1min', 'sit_ups_2min', 'sprint_10m', 'sprint_20m',
-            'sprint_40m', 'agility_t_test', 'agility_505', 'illinois_agility',
+            'sprint_40m', 'sprint_5m', 'sprint_15m', 'agility_t_test', 'agility_505', 'illinois_agility',
             'vertical_jump', 'broad_jump', 'single_leg_jump_left',
-            'single_leg_jump_right', 'yo_yo_test', 'bronco_test',
-            'sit_and_reach', 'dorsiflexion_left', 'dorsiflexion_right', 'notes'
+            'single_leg_jump_right', 'stiff_arm_jump', 'cmj', 'depth_drop_jump',
+            'yo_yo_test', 'bronco_test', 'sit_and_reach', 'knee_to_wall',
+            'dorsiflexion_left', 'dorsiflexion_right', 'notes'
         ]
         
         for field in update_fields:
@@ -381,6 +394,7 @@ def get_performance_stats():
         athlete_id = request.args.get('athlete_id')
         test_type = request.args.get('test_type')
         metric = request.args.get('metric')  # Specific metric to analyze
+        term = request.args.get('term', type=int)
         
         if not athlete_id:
             return jsonify({'success': False, 'message': 'Athlete ID is required'}), 400
@@ -403,6 +417,8 @@ def get_performance_stats():
         query = PerformanceTest.query.filter_by(athlete_id=athlete_id)
         if test_type:
             query = query.filter_by(test_type=test_type)
+        if term:
+            query = query.filter_by(term=term)
         
         tests = query.order_by(PerformanceTest.test_date.asc()).all()
         
@@ -424,6 +440,7 @@ def get_performance_stats():
         
         # Get latest values for common metrics
         latest_values = {}
+        team_average_values = {}
         if tests:
             latest = tests[-1]
             metrics = [
@@ -441,6 +458,17 @@ def get_performance_stats():
                 value = getattr(latest, metric_name)
                 if value:
                     latest_values[metric_name] = {'value': value, 'unit': unit}
+
+        if user.role == 'coach':
+            team_athlete_ids = [athlete.id for athlete in Athlete.query.filter_by(team_id=athlete.team_id).all()]
+            team_query = PerformanceTest.query.filter(PerformanceTest.athlete_id.in_(team_athlete_ids))
+            if term:
+                team_query = team_query.filter_by(term=term)
+            team_tests = team_query.all()
+            for metric_name, unit in metrics:
+                values = [getattr(test, metric_name) for test in team_tests if getattr(test, metric_name) is not None]
+                if values:
+                    team_average_values[metric_name] = {'value': round(sum(values) / len(values), 2), 'unit': unit}
         
         # Calculate improvements
         improvements = {}
@@ -492,6 +520,7 @@ def get_performance_stats():
                 'test_types': test_types,
                 'improvements': improvements,
                 'latest_values': latest_values
+                , 'team_average_values': team_average_values
             },
             'trends': trends
         })

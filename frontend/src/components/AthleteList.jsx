@@ -292,20 +292,16 @@ const AthleteList = ({ user }) => {
             <div className="space-y-3 mb-6">
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <p className="text-xs text-slate-500">Age</p>
-                  <p className="text-sm text-white">{athlete.age || 'N/A'}</p>
+                  <p className="text-xs text-slate-500">Position</p>
+                  <p className="text-sm text-white">{athlete.position || 'N/A'}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500">Height</p>
-                  <p className="text-sm text-white">{athlete.height ? `${athlete.height}cm` : 'N/A'}</p>
+                  <p className="text-xs text-slate-500">Summer code</p>
+                  <p className="text-sm text-white">{athlete.summer_sporting_code || 'N/A'}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500">Weight</p>
-                  <p className="text-sm text-white">{athlete.weight ? `${athlete.weight}kg` : 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500">Side</p>
-                  <p className="text-sm text-white">{athlete.dominant_side || 'N/A'}</p>
+                  <p className="text-xs text-slate-500">Winter code</p>
+                  <p className="text-sm text-white">{athlete.winter_sporting_code || 'N/A'}</p>
                 </div>
               </div>
             </div>

@@ -3,6 +3,7 @@ import { performance } from '../services/performance';
 import { athletes } from '../services/athletes';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
 import { Line, Bar } from 'react-chartjs-2';
+import performanceReference from '../data/performanceReference';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
@@ -16,6 +17,8 @@ const PerformanceHistory = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('all');
   const [viewMode, setViewMode] = useState('table'); // 'table', 'charts', 'summary'
+  const [term, setTerm] = useState('all');
+  const [expandedReference, setExpandedReference] = useState(null);
 
   // Available metrics for charting
   const availableMetrics = [
@@ -44,7 +47,7 @@ const PerformanceHistory = ({ user }) => {
     if (selectedAthlete || user.role === 'athlete') {
       loadPerformanceData();
     }
-  }, [selectedAthlete, timeRange, user]);
+  }, [selectedAthlete, timeRange, term, user]);
 
   const loadCoachAthletes = async () => {
     try {
@@ -79,6 +82,7 @@ const PerformanceHistory = ({ user }) => {
       setLoading(true);
       
       const params = { athlete_id: selectedAthlete };
+      if (term !== 'all') params.term = term;
       if (timeRange !== 'all') {
         const days = parseInt(timeRange);
         const startDate = new Date();
@@ -225,6 +229,18 @@ const PerformanceHistory = ({ user }) => {
         
         {/* Filters & Controls */}
         <div className="flex flex-wrap items-center gap-3">
+          <select
+            value={term}
+            onChange={(e) => setTerm(e.target.value)}
+            className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand-cyan"
+          >
+            <option value="all">All Terms</option>
+            <option value="1">Term 1</option>
+            <option value="2">Term 2</option>
+            <option value="3">Term 3</option>
+            <option value="4">Term 4</option>
+          </select>
+
           {user.role === 'coach' && coachAthletes.length > 0 && (
             <select
               value={selectedAthlete}
@@ -643,6 +659,21 @@ const PerformanceHistory = ({ user }) => {
                   {data.value} {data.unit}
                 </p>
                 <p className="text-xs text-slate-400 mt-1">Latest measurement</p>
+                {performanceStats.stats.team_average_values?.[metric] && (
+                  <p className="text-xs text-brand-cyan mt-1">Team average: {performanceStats.stats.team_average_values[metric].value} {data.unit}</p>
+                )}
+                {performanceReference[metric] && (
+                  <button type="button" onClick={() => setExpandedReference(expandedReference === metric ? null : metric)} className="text-xs text-brand-cyan mt-2">
+                    {expandedReference === metric ? 'Hide guidance' : 'View guidance'}
+                  </button>
+                )}
+                {expandedReference === metric && (
+                  <div className="text-xs text-slate-300 mt-2 space-y-1">
+                    <p>{performanceReference[metric].purpose}</p>
+                    {performanceReference[metric].interpretation && <p>Interpretation: {performanceReference[metric].interpretation}</p>}
+                    <p>Improve: {performanceReference[metric].improvement}</p>
+                  </div>
+                )}
               </div>
             ))}
           </div>

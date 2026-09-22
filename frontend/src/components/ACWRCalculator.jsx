@@ -18,10 +18,15 @@ const ACWRCalculator = ({ user }) => {
       const athlete = athletesList.find(a => a.user_id === user.id);
       if (athlete) {
         setSelectedAthlete(athlete.id);
-        calculateACWR(athlete.id);
       }
     }
   }, [athletesList, user]);
+
+  useEffect(() => {
+    if (selectedAthlete) {
+      calculateACWR(selectedAthlete);
+    }
+  }, [selectedAthlete, calculationDate]);
 
   const loadAthletes = async () => {
     try {
@@ -43,8 +48,8 @@ const ACWRCalculator = ({ user }) => {
     setLoading(true);
     try {
       const response = await workload.calculateACWR(athleteId, calculationDate);
-      if (response.data.success) {
-        setAcwrData(response.data);
+      if (response.success) {
+        setAcwrData(response);
       }
     } catch (err) {
       console.error('Error calculating ACWR:', err);
@@ -57,11 +62,10 @@ const ACWRCalculator = ({ user }) => {
   const handleAthleteSelect = (e) => {
     const athleteId = e.target.value;
     setSelectedAthlete(athleteId);
-    if (athleteId) {
-      calculateACWR(athleteId);
-    } else {
+    if (!athleteId) {
       setAcwrData(null);
     }
+    <div className="text-sm text-slate-400">Optimal (0.8-1.3)</div>
   };
 
   const handleDateChange = (e) => {
@@ -229,11 +233,13 @@ const ACWRCalculator = ({ user }) => {
             <div className="h-2 w-full bg-green-500 rounded mb-2"></div>
             <span className="text-xs text-slate-400">Optimal</span>
             <div className="text-sm text-white">0.8 - 1.2</div>
+                      <div className="text-sm text-white">0.8 - 1.3</div>
           </div>
           <div className="text-center">
             <div className="h-2 w-full bg-amber-500 rounded mb-2"></div>
             <span className="text-xs text-slate-400">Moderate</span>
             <div className="text-sm text-white">1.2 - 1.5</div>
+                      <div className="text-sm text-white">1.3 - 1.5</div>
           </div>
           <div className="text-center">
             <div className="h-2 w-full bg-red-500 rounded mb-2"></div>
@@ -420,10 +426,12 @@ const ACWRCalculator = ({ user }) => {
               <li className="flex items-center">
                 <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
                 <span>0.8-1.2: Optimal training zone</span>
+                              <span>0.8-1.3: Optimal training zone</span>
               </li>
               <li className="flex items-center">
                 <div className="w-2 h-2 bg-amber-500 rounded-full mr-2"></div>
                 <span>1.2-1.5: Moderate injury risk</span>
+                              <span>1.3-1.5: Moderate injury risk</span>
               </li>
               <li className="flex items-center">
                 <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>

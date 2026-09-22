@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { wellness } from '../services/wellness';
 import { athletes } from '../services/athletes';
+import { notifications } from '../services/notifications';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { Line, Bar } from 'react-chartjs-2';
 
@@ -15,10 +16,25 @@ const WellnessDashboard = ({ user }) => {
   const [coachAthletes, setCoachAthletes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('7'); // days
+  const [reminders, setReminders] = useState([]);
 
   useEffect(() => {
     loadData();
+    if (user.role === 'athlete') {
+      loadReminders();
+    }
   }, [selectedAthlete, timeRange]);
+
+  const loadReminders = async () => {
+    try {
+      const response = await notifications.getAll();
+      if (response.data?.success) {
+        setReminders(response.data.notifications.filter(notification => notification.type === 'wellness_reminder' || notification.type === 'wellness_check'));
+      }
+    } catch (err) {
+      console.error('Error loading notifications:', err);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -188,6 +204,11 @@ const WellnessDashboard = ({ user }) => {
 
   return (
     <div className="space-y-6">
+      {user.role === 'athlete' && reminders.length > 0 && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-amber-200">
+          {reminders.slice(0, 1).map(reminder => <p key={`${reminder.type}-${reminder.date}`}>{reminder.message}</p>)}
+        </div>
+      )}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

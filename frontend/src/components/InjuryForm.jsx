@@ -11,6 +11,8 @@ const InjuryForm = ({ user, onSuccess, injuryToEdit = null, onClose }) => {
     severity: 'mild',
     date_reported: new Date().toISOString().split('T')[0],
     date_occurred: '',
+    injury_context: '',
+    injury_context_other: '',
     mechanism: '',
     symptoms: '',
     diagnosis: '',
@@ -74,6 +76,8 @@ const InjuryForm = ({ user, onSuccess, injuryToEdit = null, onClose }) => {
         severity: injuryToEdit.severity || 'mild',
         date_reported: injuryToEdit.date_reported || new Date().toISOString().split('T')[0],
         date_occurred: injuryToEdit.date_occurred || '',
+        injury_context: injuryToEdit.injury_context || '',
+        injury_context_other: injuryToEdit.injury_context_other || '',
         mechanism: injuryToEdit.mechanism || '',
         symptoms: injuryToEdit.symptoms || '',
         diagnosis: injuryToEdit.diagnosis || '',
@@ -316,6 +320,22 @@ const InjuryForm = ({ user, onSuccess, injuryToEdit = null, onClose }) => {
                   <p className="mt-2 text-sm text-red-400">{errors.injury_type}</p>
                 )}
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Where did it happen? *</label>
+                <select name="injury_context" value={formData.injury_context} onChange={handleChange} className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-lg text-white">
+                  <option value="">Select context</option>
+                  <option value="sport_training">During sport training</option>
+                  <option value="sport_match">During sport match</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              {formData.injury_context === 'other' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Where did it happen? *</label>
+                  <input type="text" name="injury_context_other" value={formData.injury_context_other} onChange={handleChange} className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-lg text-white" required />
+                </div>
+              )}
 
               {/* Body Part */}
               <div>
@@ -586,13 +606,15 @@ const InjuryForm = ({ user, onSuccess, injuryToEdit = null, onClose }) => {
                 <label className="block text-sm font-medium text-slate-300 mb-2">
                   Mechanism of Injury
                 </label>
-                <textarea
-                  value={formData.mechanism}
-                  onChange={(e) => handleTextAreaChange('mechanism', e.target.value)}
-                  rows="3"
-                  className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-cyan resize-none"
-                  placeholder="How did the injury occur? (e.g., during practice, game, specific movement)"
-                />
+                <select name="mechanism" value={formData.mechanism} onChange={handleChange} className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-lg text-white">
+                  <option value="">Select mechanism</option>
+                  <option value="contact">Contact</option>
+                  <option value="non_contact">Non-contact movement</option>
+                  <option value="overuse">Overuse</option>
+                  <option value="fall">Fall</option>
+                  <option value="collision">Collision</option>
+                  <option value="unknown">Unknown</option>
+                </select>
               </div>
 
               <div>

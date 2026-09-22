@@ -11,6 +11,11 @@ const AddAthleteModal = ({ teams, onClose, onSubmit }) => {
     height: '',
     weight: '',
     position: '',
+    summer_sporting_code: '',
+    winter_sporting_code: '',
+    bleep_score: '',
+    sport_attendance: '',
+    gym_attendance: '',
     dominant_side: '',
     bio_notes: ''
   });
@@ -55,6 +60,9 @@ const AddAthleteModal = ({ teams, onClose, onSubmit }) => {
       age: formData.age ? parseInt(formData.age) : null,
       height: formData.height ? parseFloat(formData.height) : null,
       weight: formData.weight ? parseFloat(formData.weight) : null,
+      bleep_score: formData.bleep_score ? parseFloat(formData.bleep_score) : null,
+      sport_attendance: formData.sport_attendance ? parseFloat(formData.sport_attendance) : null,
+      gym_attendance: formData.gym_attendance ? parseFloat(formData.gym_attendance) : null,
     };
 
     try {
@@ -270,6 +278,27 @@ const AddAthleteModal = ({ teams, onClose, onSubmit }) => {
                   <option value="Right">Right</option>
                   <option value="Ambidextrous">Ambidextrous</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Summer Sporting Code</label>
+                <input type="text" name="summer_sporting_code" value={formData.summer_sporting_code} onChange={handleChange} className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-lg text-white" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Winter Sporting Code</label>
+                <input type="text" name="winter_sporting_code" value={formData.winter_sporting_code} onChange={handleChange} className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-lg text-white" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Bleep Score</label>
+                <input type="number" name="bleep_score" value={formData.bleep_score} onChange={handleChange} min="0" step="0.1" className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-lg text-white" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Sport Attendance (%)</label>
+                <input type="number" name="sport_attendance" value={formData.sport_attendance} onChange={handleChange} min="0" max="100" step="0.1" className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-lg text-white" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Gym Attendance (%)</label>
+                <input type="number" name="gym_attendance" value={formData.gym_attendance} onChange={handleChange} min="0" max="100" step="0.1" className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-lg text-white" />
               </div>
 
               {/* Bio Notes */}

@@ -65,6 +65,17 @@ export const workload = {
     }
   },
 
+  calculateTeamACWR: async (teamId, date = null) => {
+    try {
+      const params = date ? `?date=${date}` : '';
+      const response = await api.get(`/workload/team-acwr/${teamId}${params}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error calculating team ACWR:', error);
+      return { success: false, message: error.response?.data?.message || 'Failed to calculate team ACWR' };
+    }
+  },
+
   // Workload Trends
   getWorkloadTrends: async (athleteId, filters = {}) => {
     try {

@@ -1,11 +1,11 @@
 USER SPECIFICATION DOCUMENT
-Athens Sports SAAS Desktop App[AK1.1]
+HER-PACE SAAS Desktop App[AK1.1]
 Client: School-based Athlete Monitoring System
 Prepared by: ECH
 Date: 8 May 2025
 ________________________________________
 1. Project Overview
-The Athens Sports SAAS App is a desktop-based application (with optional mobile access) to help schools and coaches track athlete wellness, performance metrics, injuries, and progression. It collects both self-reported and test-based data to generate actionable dashboards for athletes and coaches.
+The HER-PACE SAAS App is a desktop-based application (with optional mobile access) to help schools and coaches track athlete wellness, performance metrics, injuries, and progression. It collects both self-reported and test-based data to generate actionable dashboards for athletes and coaches.
 The MASS Athlete Monitoring program is desktop-based application with mobile access for the purpose of tracking athlete wellness, performance metrics, injuries, and program interventions with an athlete dashboard. The student’s performance data will be used for injury clearance that the athlete will be seeing.
 ________________________________________
 2. Target Users

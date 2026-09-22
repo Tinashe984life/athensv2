@@ -34,6 +34,10 @@ def create_recovery_session():
     prehab_exercises = data.get('prehab_exercises')
     if isinstance(prehab_exercises, list):
         prehab_exercises = json.dumps(prehab_exercises)
+
+    modalities = data.get('modalities', [])
+    if not isinstance(modalities, list):
+        return jsonify({'success': False, 'message': 'Modalities must be a list'}), 400
     
     # Create session
     session = RecoverySession(
@@ -48,6 +52,7 @@ def create_recovery_session():
         massage=data.get('massage', False),
         ice_bath=data.get('ice_bath', False),
         compression=data.get('compression', False),
+        modalities=json.dumps(modalities),
         sleep_quality=data.get('sleep_quality'),
         nutrition_quality=data.get('nutrition_quality'),
         hydration_status=data.get('hydration_status'),

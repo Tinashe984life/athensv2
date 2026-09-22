@@ -1854,6 +1854,15 @@ const WorkloadForm = ({ user, athleteId = null, onSuccess, onClose }) => {
           <option value="basketball">Basketball</option>
           <option value="rugby">Rugby</option>
           <option value="hockey">Hockey/Ice Hockey</option>
+          <option value="indoor hockey">Indoor Hockey</option>
+          <option value="netball">Netball</option>
+          <option value="social soccer">Social Soccer</option>
+          <option value="squash">Squash</option>
+          <option value="waterpolo">Waterpolo</option>
+          <option value="horse riding">Horse Riding</option>
+          <option value="dance">Dance</option>
+          <option value="cross country running">Cross Country Running</option>
+          <option value="hyrox">HYROX</option>
           <option value="football">American Football</option>
           <option value="volleyball">Volleyball</option>
           <option value="swimming">Swimming</option>
@@ -1962,12 +1971,9 @@ const WorkloadForm = ({ user, athleteId = null, onSuccess, onClose }) => {
                   className="w-full bg-brand-bg-light border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-brand-cyan focus:border-transparent"
                   required
                 >
-                  <option value="training">Training</option>
-                  <option value="match">Match/Game</option>
-                  <option value="recovery">Recovery</option>
-                  <option value="testing">Testing</option>
-                  <option value="skills">Skills Practice</option>
-                  <option value="other">Other</option>
+                  <option value="gymnasium_training">Gymnasium training</option>
+                  <option value="field_training">Field training</option>
+                  <option value="match_game">Match / Game</option>
                 </select>
               </div>
             </div>

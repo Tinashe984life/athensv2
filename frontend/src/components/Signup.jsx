@@ -87,7 +87,7 @@ const Signup = () => {
           </div>
           <h1 className="text-4xl font-bold text-white mb-3">
             <span className="bg-gradient-to-r from-brand-cyan to-white bg-clip-text text-transparent">
-              Join Athens Sports
+              Join HER-PACE
             </span>
           </h1>
           <p className="text-slate-400 text-lg">Create your account and start monitoring performance</p>

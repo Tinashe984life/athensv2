@@ -1,2 +1,2 @@
 # athensv2
-Athens Sports SAAS App
+HER-PACE SAAS App

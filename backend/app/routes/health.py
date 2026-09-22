@@ -8,5 +8,5 @@ def health_check():
     return jsonify({
         'status': 'healthy',
         'timestamp': datetime.datetime.utcnow().isoformat(),
-        'service': 'Athens Sports API'
+        'service': 'HER-PACE API'
     })

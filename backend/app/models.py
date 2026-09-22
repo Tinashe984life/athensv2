@@ -74,11 +74,20 @@ class Athlete(db.Model):
     height = db.Column(db.Float, nullable=True)  # in cm
     weight = db.Column(db.Float, nullable=True)  # in kg
     position = db.Column(db.String(50), nullable=True)
+    summer_sporting_code = db.Column(db.String(100), nullable=True)
+    winter_sporting_code = db.Column(db.String(100), nullable=True)
+    bleep_score = db.Column(db.Float, nullable=True)
+    sport_attendance = db.Column(db.Float, nullable=True)  # percentage
+    gym_attendance = db.Column(db.Float, nullable=True)  # percentage
     dominant_side = db.Column(db.String(10), nullable=True)  # left, right, ambidextrous
     photo_url = db.Column(db.String(500), nullable=True)
     bio_notes = db.Column(db.Text, nullable=True)
     injury_history = db.Column(db.Text, nullable=True)
     medical_notes = db.Column(db.Text, nullable=True)
+    sex = db.Column(db.String(20), nullable=True)
+    grade_level = db.Column(db.Integer, nullable=True)  # numeric grade, e.g. 9, 10, 11, 12
+    class_group = db.Column(db.String(10), nullable=True)  # class letter within grade, e.g. 'P', 'E'
+    extra_metadata = db.Column(db.JSON, nullable=True)  # secondary sport/team/division data not covered by typed fields
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -98,9 +107,18 @@ class Athlete(db.Model):
             'height': self.height,
             'weight': self.weight,
             'position': self.position,
+            'summer_sporting_code': self.summer_sporting_code,
+            'winter_sporting_code': self.winter_sporting_code,
+            'bleep_score': self.bleep_score,
+            'sport_attendance': self.sport_attendance,
+            'gym_attendance': self.gym_attendance,
             'dominant_side': self.dominant_side,
             'photo_url': self.photo_url,
             'bio_notes': self.bio_notes,
+            'sex': self.sex,
+            'grade_level': self.grade_level,
+            'class_group': self.class_group,
+            'extra_metadata': self.extra_metadata,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'user': self.user.to_dict() if self.user else None
@@ -207,6 +225,7 @@ class PerformanceTest(db.Model):
     id = db.Column(db.String(50), primary_key=True, default=lambda: str(uuid.uuid4()))
     athlete_id = db.Column(db.String(50), db.ForeignKey('athletes.id'), nullable=False)
     test_date = db.Column(db.Date, nullable=False, default=date.today)
+    term = db.Column(db.Integer, nullable=True)  # 1-4, assigned by import or coach workflow
     test_type = db.Column(db.String(50), nullable=False)  # 'strength', 'speed', 'agility', 'endurance', 'flexibility'
     
     # Anthropometric measurements
@@ -226,6 +245,8 @@ class PerformanceTest(db.Model):
     sprint_10m = db.Column(db.Float, nullable=True)  # seconds
     sprint_20m = db.Column(db.Float, nullable=True)  # seconds
     sprint_40m = db.Column(db.Float, nullable=True)  # seconds
+    sprint_5m = db.Column(db.Float, nullable=True)  # seconds
+    sprint_15m = db.Column(db.Float, nullable=True)  # seconds
     
     # Agility tests
     agility_t_test = db.Column(db.Float, nullable=True)  # seconds
@@ -237,6 +258,9 @@ class PerformanceTest(db.Model):
     broad_jump = db.Column(db.Float, nullable=True)  # cm
     single_leg_jump_left = db.Column(db.Float, nullable=True)  # cm
     single_leg_jump_right = db.Column(db.Float, nullable=True)  # cm
+    stiff_arm_jump = db.Column(db.Float, nullable=True)  # cm
+    cmj = db.Column(db.Float, nullable=True)  # cm
+    depth_drop_jump = db.Column(db.Float, nullable=True)  # cm
     
     # Endurance tests
     yo_yo_test = db.Column(db.Float, nullable=True)  # distance
@@ -244,9 +268,45 @@ class PerformanceTest(db.Model):
     
     # Flexibility tests
     sit_and_reach = db.Column(db.Float, nullable=True)  # cm
+    knee_to_wall = db.Column(db.Float, nullable=True)  # cm
     dorsiflexion_left = db.Column(db.Float, nullable=True)  # cm
     dorsiflexion_right = db.Column(db.Float, nullable=True)  # cm
-    
+    sit_reach_cm = db.Column(db.Float, nullable=True)  # raw 'Sit (cm)' reading
+    reach_cm = db.Column(db.Float, nullable=True)  # raw 'Reach (cm)' reading
+
+    # Additional anthropometric / composition summary
+    seated_height = db.Column(db.Float, nullable=True)  # cm
+    bmi = db.Column(db.Float, nullable=True)
+
+    # Additional strength/agility variants
+    sit_ups_1min = db.Column(db.Integer, nullable=True)
+    illinois_agility_left = db.Column(db.Float, nullable=True)  # seconds
+    illinois_agility_right = db.Column(db.Float, nullable=True)  # seconds
+
+    # Additional sprint metrics
+    sprint_10m_speed = db.Column(db.Float, nullable=True)  # m/s
+    sprint_40m_speed = db.Column(db.Float, nullable=True)  # m/s
+
+    # Bleep / VO2max detail (Athlete.bleep_score holds the athlete's latest summary score)
+    bleep_level = db.Column(db.Integer, nullable=True)
+    bleep_shuttle = db.Column(db.Integer, nullable=True)
+    bleep_distance_run = db.Column(db.Float, nullable=True)  # metres
+    bleep_vo2max = db.Column(db.Float, nullable=True)
+
+    # Y-Balance test
+    y_balance_anterior_left = db.Column(db.Float, nullable=True)
+    y_balance_posterolateral_left = db.Column(db.Float, nullable=True)
+    y_balance_posteromedial_left = db.Column(db.Float, nullable=True)
+    y_balance_anterior_right = db.Column(db.Float, nullable=True)
+    y_balance_posterolateral_right = db.Column(db.Float, nullable=True)
+    y_balance_posteromedial_right = db.Column(db.Float, nullable=True)
+    y_balance_composite_left = db.Column(db.Float, nullable=True)  # %
+    y_balance_composite_right = db.Column(db.Float, nullable=True)  # %
+
+    # Catch-alls: niche InBody bioimpedance detail and pre-computed norm/rating labels
+    body_composition_metrics = db.Column(db.JSON, nullable=True)
+    norm_ratings = db.Column(db.JSON, nullable=True)
+
     notes = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -255,6 +315,7 @@ class PerformanceTest(db.Model):
             'id': self.id,
             'athlete_id': self.athlete_id,
             'test_date': self.test_date.isoformat() if self.test_date else None,
+            'term': self.term,
             'test_type': self.test_type,
             'height': self.height,
             'weight': self.weight,
@@ -265,21 +326,50 @@ class PerformanceTest(db.Model):
             'pull_ups_max': self.pull_ups_max,
             'push_ups_1min': self.push_ups_1min,
             'sit_ups_2min': self.sit_ups_2min,
+            'sit_ups_1min': self.sit_ups_1min,
             'sprint_10m': self.sprint_10m,
             'sprint_20m': self.sprint_20m,
             'sprint_40m': self.sprint_40m,
+            'sprint_5m': self.sprint_5m,
+            'sprint_15m': self.sprint_15m,
+            'sprint_10m_speed': self.sprint_10m_speed,
+            'sprint_40m_speed': self.sprint_40m_speed,
             'agility_t_test': self.agility_t_test,
             'agility_505': self.agility_505,
             'illinois_agility': self.illinois_agility,
+            'illinois_agility_left': self.illinois_agility_left,
+            'illinois_agility_right': self.illinois_agility_right,
             'vertical_jump': self.vertical_jump,
             'broad_jump': self.broad_jump,
             'single_leg_jump_left': self.single_leg_jump_left,
             'single_leg_jump_right': self.single_leg_jump_right,
+            'stiff_arm_jump': self.stiff_arm_jump,
+            'cmj': self.cmj,
+            'depth_drop_jump': self.depth_drop_jump,
             'yo_yo_test': self.yo_yo_test,
             'bronco_test': self.bronco_test,
             'sit_and_reach': self.sit_and_reach,
+            'knee_to_wall': self.knee_to_wall,
             'dorsiflexion_left': self.dorsiflexion_left,
             'dorsiflexion_right': self.dorsiflexion_right,
+            'sit_reach_cm': self.sit_reach_cm,
+            'reach_cm': self.reach_cm,
+            'seated_height': self.seated_height,
+            'bmi': self.bmi,
+            'bleep_level': self.bleep_level,
+            'bleep_shuttle': self.bleep_shuttle,
+            'bleep_distance_run': self.bleep_distance_run,
+            'bleep_vo2max': self.bleep_vo2max,
+            'y_balance_anterior_left': self.y_balance_anterior_left,
+            'y_balance_posterolateral_left': self.y_balance_posterolateral_left,
+            'y_balance_posteromedial_left': self.y_balance_posteromedial_left,
+            'y_balance_anterior_right': self.y_balance_anterior_right,
+            'y_balance_posterolateral_right': self.y_balance_posterolateral_right,
+            'y_balance_posteromedial_right': self.y_balance_posteromedial_right,
+            'y_balance_composite_left': self.y_balance_composite_left,
+            'y_balance_composite_right': self.y_balance_composite_right,
+            'body_composition_metrics': self.body_composition_metrics,
+            'norm_ratings': self.norm_ratings,
             'notes': self.notes,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
@@ -295,6 +385,8 @@ class InjuryRecord(db.Model):
     severity = db.Column(db.String(20), nullable=False)
     date_reported = db.Column(db.Date, nullable=False, default=date.today)
     date_occurred = db.Column(db.Date, nullable=True)
+    injury_context = db.Column(db.String(30), nullable=True)
+    injury_context_other = db.Column(db.String(200), nullable=True)
     mechanism = db.Column(db.Text, nullable=True)
     symptoms = db.Column(db.Text, nullable=True)
     diagnosis = db.Column(db.Text, nullable=True)
@@ -339,6 +431,8 @@ class InjuryRecord(db.Model):
             'severity': self.severity,
             'date_reported': self.date_reported.isoformat() if self.date_reported else None,
             'date_occurred': self.date_occurred.isoformat() if self.date_occurred else None,
+            'injury_context': self.injury_context,
+            'injury_context_other': self.injury_context_other,
             'mechanism': self.mechanism,
             'symptoms': self.symptoms,
             'diagnosis': self.diagnosis,
@@ -568,6 +662,7 @@ class RecoverySession(db.Model):
     massage = db.Column(db.Boolean, default=False)
     ice_bath = db.Column(db.Boolean, default=False)
     compression = db.Column(db.Boolean, default=False)
+    modalities = db.Column(db.Text, nullable=True)
     sleep_quality = db.Column(db.Integer, nullable=True)  # 1-5
     nutrition_quality = db.Column(db.Integer, nullable=True)  # 1-5
     hydration_status = db.Column(db.Integer, nullable=True)  # 1-5
@@ -593,6 +688,12 @@ class RecoverySession(db.Model):
                 prehab_exercises = json.loads(self.prehab_exercises)
             except:
                 prehab_exercises = []
+        modalities = []
+        if self.modalities:
+            try:
+                modalities = json.loads(self.modalities)
+            except:
+                modalities = []
         
         return {
             'id': self.id,
@@ -606,6 +707,7 @@ class RecoverySession(db.Model):
             'massage': self.massage,
             'ice_bath': self.ice_bath,
             'compression': self.compression,
+            'modalities': modalities,
             'sleep_quality': self.sleep_quality,
             'nutrition_quality': self.nutrition_quality,
             'hydration_status': self.hydration_status,
@@ -684,4 +786,55 @@ class PrehabRecommendation(db.Model):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'athlete_name': f"{self.athlete.user.name} {self.athlete.user.surname}" if self.athlete and self.athlete.user else None,
             'created_by_name': f"{self.creator.name} {self.creator.surname}" if self.creator else None
+        }
+
+
+class Notification(db.Model):
+    __tablename__ = 'notifications'
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'notification_type', 'target_date', name='uq_notification_user_type_date'),
+    )
+
+    id = db.Column(db.String(50), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = db.Column(db.String(50), db.ForeignKey('users.id'), nullable=False, index=True)
+    notification_type = db.Column(db.String(50), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    priority = db.Column(db.String(20), nullable=False, default='medium')
+    target_date = db.Column(db.Date, nullable=False)
+    is_read = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref='notifications', lazy=True)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'type': self.notification_type,
+            'message': self.message,
+            'priority': self.priority,
+            'date': self.target_date.isoformat(),
+            'is_read': self.is_read,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class NormativeBenchmark(db.Model):
+    """Age-banded benchmark thresholds used to classify a raw test score into a rating label."""
+    __tablename__ = 'normative_benchmarks'
+
+    id = db.Column(db.String(50), primary_key=True, default=lambda: str(uuid.uuid4()))
+    test_type = db.Column(db.String(50), nullable=False, index=True)  # e.g. 'sit_and_reach', 'y_balance', 'bleep'
+    age = db.Column(db.Integer, nullable=True)  # null when the benchmark applies to all ages
+    rating_label = db.Column(db.String(30), nullable=False)  # e.g. 'Poor', 'Average', 'Excellent'
+    threshold_value = db.Column(db.Float, nullable=False)  # minimum score to achieve this rating
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'test_type': self.test_type,
+            'age': self.age,
+            'rating_label': self.rating_label,
+            'threshold_value': self.threshold_value,
         }

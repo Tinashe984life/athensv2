@@ -102,6 +102,11 @@ def create_athlete():
             height=data.get('height'),
             weight=data.get('weight'),
             position=data.get('position'),
+            summer_sporting_code=data.get('summer_sporting_code'),
+            winter_sporting_code=data.get('winter_sporting_code'),
+            bleep_score=data.get('bleep_score'),
+            sport_attendance=data.get('sport_attendance'),
+            gym_attendance=data.get('gym_attendance'),
             dominant_side=data.get('dominant_side'),
             bio_notes=data.get('bio_notes')
         )
@@ -189,7 +194,8 @@ def update_athlete(athlete_id):
         # Update athlete fields
         update_fields = [
             'jersey_number', 'age', 'height', 'weight', 'position',
-            'dominant_side', 'photo_url', 'bio_notes', 'injury_history',
+            'summer_sporting_code', 'winter_sporting_code', 'bleep_score',
+            'sport_attendance', 'gym_attendance', 'dominant_side', 'photo_url', 'bio_notes', 'injury_history',
             'medical_notes'
         ]
         

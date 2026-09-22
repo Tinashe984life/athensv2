@@ -57,6 +57,12 @@ def create_injury():
                 date_occurred = datetime.strptime(data['date_occurred'], '%Y-%m-%d').date()
             except ValueError:
                 return jsonify({'success': False, 'message': 'Invalid date format for date_occurred. Use YYYY-MM-DD'}), 400
+
+        injury_context = data.get('injury_context')
+        if injury_context not in ['sport_training', 'sport_match', 'other']:
+            return jsonify({'success': False, 'message': 'A valid injury context is required'}), 400
+        if injury_context == 'other' and not data.get('injury_context_other', '').strip():
+            return jsonify({'success': False, 'message': 'Please specify where the injury happened'}), 400
         
         # Check if this is a concussion
         injury_type_lower = data['injury_type'].lower()
@@ -72,6 +78,8 @@ def create_injury():
             severity=data['severity'],
             date_reported=date_reported,
             date_occurred=date_occurred,
+            injury_context=injury_context,
+            injury_context_other=data.get('injury_context_other'),
             mechanism=data.get('mechanism'),
             symptoms=data.get('symptoms'),
             diagnosis=data.get('diagnosis'),

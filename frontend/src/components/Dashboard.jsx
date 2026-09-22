@@ -14,7 +14,6 @@ import WorkloadForm from './WorkloadForm';
 import RecoveryForm from './RecoveryForm';
 import WorkloadDashboard from './WorkloadDashboard'; // We'll create this
 import ACWRCalculator from './ACWRCalculator'; // We'll create this
-import PrehabRecommendationForm from './PrehabRecommendationForm'; // We'll create this
 import AdminPanel from './AdminPanel';
 import { dashboard } from '../services/dashboard';
 import { athletes } from '../services/athletes';
@@ -24,7 +23,6 @@ const Dashboard = ({ user, onLogout }) => {
   const [showInjuryForm, setShowInjuryForm] = useState(false);
   const [showWorkloadForm, setShowWorkloadForm] = useState(false);
   const [showRecoveryForm, setShowRecoveryForm] = useState(false);
-  const [showPrehabForm, setShowPrehabForm] = useState(false);
   const [overviewStats, setOverviewStats] = useState({
     totalAthletes: 0,
     totalTeams: 0,
@@ -293,7 +291,6 @@ const Dashboard = ({ user, onLogout }) => {
                           }},
                           { title: 'Log Training Session', desc: 'Record workout details', icon: '🏋️', onClick: () => setShowWorkloadForm(true) },
                           { title: 'Log Recovery Session', desc: 'Record recovery activities', icon: '🧘', onClick: () => setShowRecoveryForm(true) },
-                          { title: 'Create Prehab Plan', desc: 'Design injury prevention', icon: '🛡️', onClick: () => setShowPrehabForm(true) },
                           { title: 'View ACWR Calculator', desc: 'Check workload ratios', icon: '📈', onClick: () => {
                             setActiveTab('workload');
                             window.location.hash = 'acwr-calculator';
@@ -380,7 +377,7 @@ const Dashboard = ({ user, onLogout }) => {
                 </svg>
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white">Athens Dashboard</h1>
+                <h1 className="text-xl font-bold text-white">HER-PACE Dashboard</h1>
                 <p className="text-xs text-slate-400">Performance Monitoring System</p>
               </div>
             </div>
@@ -659,11 +656,11 @@ const Dashboard = ({ user, onLogout }) => {
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="flex items-center space-x-3 mb-4 md:mb-0">
               <div className="w-8 h-8 bg-gradient-to-br from-brand-cyan to-brand-cyan-dark rounded-lg"></div>
-              <span className="text-white font-semibold">Athens Sports</span>
+              <span className="text-white font-semibold">HER-PACE</span>
             </div>
             <div className="flex items-center space-x-6">
               <div className="text-sm text-slate-500">
-                © {new Date().getFullYear()} Athens Sports SAAS.
+                © {new Date().getFullYear()} HER-PACE.
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 bg-brand-cyan rounded-full animate-pulse"></div>
@@ -722,21 +719,6 @@ const Dashboard = ({ user, onLogout }) => {
         </div>
       )}
 
-      {/* Prehab Form Modal */}
-      {showPrehabForm && (
-        <div className="fixed inset-0 bg-black/70 flex items-start justify-center p-4 z-50 overflow-y-auto">
-          <div className="w-full max-w-4xl mt-8 mb-8">
-            <PrehabRecommendationForm
-              user={user}
-              onSuccess={() => {
-                setShowPrehabForm(false);
-                loadOverviewStats();
-              }}
-              onClose={() => setShowPrehabForm(false)}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 };

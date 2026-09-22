@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { athletes } from '../services/athletes';
+import RecoveryForm from './RecoveryForm';
 
 const AthleteProfile = ({ user }) => {
   const [athleteProfile, setAthleteProfile] = useState(null);
@@ -7,6 +8,7 @@ const AthleteProfile = ({ user }) => {
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showRecoveryForm, setShowRecoveryForm] = useState(false);
 
   useEffect(() => {
     loadAthleteProfile();
@@ -106,12 +108,10 @@ const AthleteProfile = ({ user }) => {
           <p className="text-slate-400">View and manage your athlete profile</p>
         </div>
         {!editing && (
-          <button
-            onClick={() => setEditing(true)}
-            className="px-4 py-2 bg-gradient-to-r from-brand-cyan to-brand-cyan-dark text-white hover:from-brand-cyan-dark hover:to-brand-cyan rounded-lg transition-all duration-200"
-          >
-            Edit Profile
-          </button>
+          <div className="flex gap-3">
+            <button onClick={() => setShowRecoveryForm(true)} className="px-4 py-2 bg-slate-800 text-white rounded-lg">Log Recovery</button>
+            <button onClick={() => setEditing(true)} className="px-4 py-2 bg-gradient-to-r from-brand-cyan to-brand-cyan-dark text-white hover:from-brand-cyan-dark hover:to-brand-cyan rounded-lg transition-all duration-200">Edit Profile</button>
+          </div>
         )}
       </div>
 
@@ -419,6 +419,14 @@ const AthleteProfile = ({ user }) => {
           </div>
         )}
       </div>
+
+      {showRecoveryForm && (
+        <div className="fixed inset-0 bg-black/70 flex items-start justify-center p-4 z-50 overflow-y-auto">
+          <div className="w-full max-w-4xl mt-8 mb-8">
+            <RecoveryForm user={user} athleteId={athleteProfile.id} onSuccess={() => setShowRecoveryForm(false)} onClose={() => setShowRecoveryForm(false)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

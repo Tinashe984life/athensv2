@@ -23,7 +23,7 @@ const RecoveryForm = ({ user, athleteId = null, injuryId = null, onSuccess, onCl
     foam_rolling: false,
     massage: false,
     ice_bath: false,
-    compression: false,
+    modalities: [],
     sleep_quality: '',
     nutrition_quality: '',
     hydration_status: '',
@@ -204,6 +204,7 @@ const RecoveryForm = ({ user, athleteId = null, injuryId = null, onSuccess, onCl
           massage: false,
           ice_bath: false,
           compression: false,
+          modalities: [],
           sleep_quality: '',
           nutrition_quality: '',
           hydration_status: '',
@@ -553,7 +554,6 @@ const RecoveryForm = ({ user, athleteId = null, injuryId = null, onSuccess, onCl
               </select>
             </div>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -567,7 +567,7 @@ const RecoveryForm = ({ user, athleteId = null, injuryId = null, onSuccess, onCl
                 placeholder="e.g., Light Jog, Shoulder Rehab Session"
                 className="w-full bg-brand-bg-light border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-brand-cyan focus:border-transparent"
               />
-            </div>
+          </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -592,26 +592,27 @@ const RecoveryForm = ({ user, athleteId = null, injuryId = null, onSuccess, onCl
             </label>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               {[
-                { name: 'stretching', label: 'Stretching', icon: '🤸' },
-                { name: 'foam_rolling', label: 'Foam Rolling', icon: '🧘' },
-                { name: 'massage', label: 'Massage', icon: '💆' },
-                { name: 'ice_bath', label: 'Ice Bath', icon: '🧊' },
-                { name: 'compression', label: 'Compression', icon: '🩹' }
+                'Active Isolated Stretching', 'Static stretching', 'Dynamic stretching',
+                'Foam roll', 'Compression socks', 'Compression boots', 'Bike ride',
+                'Recovery cool down walk', 'Ice bath'
               ].map(modality => (
-                <label key={modality.name} className={`flex flex-col items-center p-3 border rounded-lg cursor-pointer transition-all ${
-                  formData[modality.name] 
+                <label key={modality} className={`flex flex-col items-center p-3 border rounded-lg cursor-pointer transition-all ${
+                  formData.modalities.includes(modality)
                     ? 'border-brand-cyan bg-brand-cyan/10' 
                     : 'border-slate-700 hover:border-slate-600'
                 }`}>
                   <input
                     type="checkbox"
-                    name={modality.name}
-                    checked={formData[modality.name]}
-                    onChange={handleInputChange}
+                    checked={formData.modalities.includes(modality)}
+                    onChange={() => setFormData(prev => ({
+                      ...prev,
+                      modalities: prev.modalities.includes(modality)
+                        ? prev.modalities.filter(item => item !== modality)
+                        : [...prev.modalities, modality]
+                    }))}
                     className="hidden"
                   />
-                  <span className="text-2xl mb-1">{modality.icon}</span>
-                  <span className="text-slate-300 text-xs text-center">{modality.label}</span>
+                  <span className="text-slate-300 text-xs text-center">{modality}</span>
                 </label>
               ))}
             </div>

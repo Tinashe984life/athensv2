@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { teams, athletes } from '../services/athletes';
 
+const averageMetric = (athleteList, field) => {
+  const values = athleteList
+    .map(athlete => athlete[field])
+    .filter(value => value !== null && value !== undefined && value !== '');
+  return values.length > 0
+    ? (values.reduce((sum, value) => sum + Number(value), 0) / values.length).toFixed(1)
+    : '—';
+};
+
 const TeamManagement = ({ user }) => {
   const [teamList, setTeamList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -231,32 +240,16 @@ const TeamManagement = ({ user }) => {
               <h3 className="text-xl font-bold text-white mb-4">Team Stats</h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Total Athletes</span>
-                  <span className="text-2xl font-bold text-white">{teamAthletes.length}</span>
+                  <span className="text-slate-400">Average Bleep Score</span>
+                  <span className="text-2xl font-bold text-white">{averageMetric(teamAthletes, 'bleep_score')}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Avg Age</span>
-                  <span className="text-2xl font-bold text-white">
-                    {teamAthletes.length > 0
-                      ? Math.round(teamAthletes.reduce((sum, a) => sum + (a.age || 0), 0) / teamAthletes.length)
-                      : 0}
-                  </span>
+                  <span className="text-slate-400">Average Sport Attendance</span>
+                  <span className="text-2xl font-bold text-white">{averageMetric(teamAthletes, 'sport_attendance')}%</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Avg Height</span>
-                  <span className="text-2xl font-bold text-white">
-                    {teamAthletes.length > 0
-                      ? Math.round(teamAthletes.reduce((sum, a) => sum + (a.height || 0), 0) / teamAthletes.length)
-                      : 0}cm
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Avg Weight</span>
-                  <span className="text-2xl font-bold text-white">
-                    {teamAthletes.length > 0
-                      ? Math.round(teamAthletes.reduce((sum, a) => sum + (a.weight || 0), 0) / teamAthletes.length)
-                      : 0}kg
-                  </span>
+                  <span className="text-slate-400">Average Gym Attendance</span>
+                  <span className="text-2xl font-bold text-white">{averageMetric(teamAthletes, 'gym_attendance')}%</span>
                 </div>
               </div>
             </div>

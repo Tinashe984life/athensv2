@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, date, timedelta
 from app import db
 from app.models import User, Athlete, Team, WorkloadSession, RecoverySession, PrehabRecommendation, WellnessEntry
+from app.services.acwr import calculate_acwr as calculate_canonical_acwr, calculate_team_acwr
 import json
 import uuid
 
@@ -210,77 +211,28 @@ def calculate_acwr(athlete_id):
     if current_user.role == 'athlete' and current_user.id != athlete.user_id:
         return jsonify({'success': False, 'message': 'Unauthorized'}), 403
     
-    # Get date parameter or use today
-    target_date_str = request.args.get('date', date.today().isoformat())
-    target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
-    
-    # Calculate acute workload (last 7 days)
-    acute_start = target_date - timedelta(days=7)
-    acute_sessions = WorkloadSession.query.filter(
-        WorkloadSession.athlete_id == athlete_id,
-        WorkloadSession.date >= acute_start,
-        WorkloadSession.date <= target_date
-    ).all()
-    
-    acute_workload = sum(session.workload_score or 0 for session in acute_sessions)
-    acute_days = len({session.date for session in acute_sessions}) or 1
-    
-    # Calculate chronic workload (last 28 days)
-    chronic_start = target_date - timedelta(days=28)
-    chronic_sessions = WorkloadSession.query.filter(
-        WorkloadSession.athlete_id == athlete_id,
-        WorkloadSession.date >= chronic_start,
-        WorkloadSession.date <= target_date
-    ).all()
-    
-    chronic_workload = sum(session.workload_score or 0 for session in chronic_sessions)
-    chronic_days = len({session.date for session in chronic_sessions}) or 1
-    
-    # Calculate averages
-    acute_average = acute_workload / acute_days if acute_days > 0 else 0
-    chronic_average = chronic_workload / chronic_days if chronic_days > 0 else 0
-    
-    # Calculate ACWR
-    acwr = acute_average / chronic_average if chronic_average > 0 else 0
-    
-    # Determine risk level
-    risk_level = 'low'
-    if acwr > 1.5:
-        risk_level = 'high'
-    elif acwr > 1.2:
-        risk_level = 'moderate'
-    elif acwr < 0.8:
-        risk_level = 'detraining'
-    
-    # Get monotony (variability in workload)
-    daily_workloads = {}
-    for session in acute_sessions:
-        if session.date not in daily_workloads:
-            daily_workloads[session.date] = 0
-        daily_workloads[session.date] += session.workload_score or 0
-    
-    if daily_workloads:
-        avg_daily_workload = sum(daily_workloads.values()) / len(daily_workloads)
-        std_dev = (sum((w - avg_daily_workload) ** 2 for w in daily_workloads.values()) / len(daily_workloads)) ** 0.5
-        monotony = avg_daily_workload / std_dev if std_dev > 0 else 0
-    else:
-        monotony = 0
-    
-    return jsonify({
-        'success': True,
-        'acwr': round(acwr, 2),
-        'risk_level': risk_level,
-        'acute_workload': round(acute_workload, 1),
-        'chronic_workload': round(chronic_workload, 1),
-        'acute_average': round(acute_average, 1),
-        'chronic_average': round(chronic_average, 1),
-        'monotony': round(monotony, 2),
-        'acute_days': acute_days,
-        'chronic_days': chronic_days,
-        'acute_sessions_count': len(acute_sessions),
-        'chronic_sessions_count': len(chronic_sessions),
-        'date': target_date.isoformat()
-    })
+    result = calculate_canonical_acwr(athlete_id, request.args.get('date'))
+    return jsonify({'success': True, **result, 'monotony': 0})
+
+
+@bp.route('/team-acwr/<team_id>', methods=['GET'])
+@jwt_required()
+def calculate_team_acwr_route(team_id):
+    """Calculate the average ACWR for a coach's team."""
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    team = Team.query.get(team_id)
+    if not team:
+        return jsonify({'success': False, 'message': 'Team not found'}), 404
+    if current_user.role == 'coach' and team.coach_id != current_user_id:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+    if current_user.role == 'athlete':
+        athlete = Athlete.query.filter_by(user_id=current_user_id, team_id=team_id).first()
+        if not athlete:
+            return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+
+    result = calculate_team_acwr(team_id, request.args.get('date'))
+    return jsonify({'success': True, **result})
 
 
 @bp.route('/workload-trends/<athlete_id>', methods=['GET'])

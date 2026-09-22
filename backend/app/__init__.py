@@ -24,6 +24,8 @@ def create_app():
     app.config['BACKUP_DIR'] = os.environ.get('BACKUP_DIR')
     app.config['BACKUP_INTERVAL_HOURS'] = float(os.environ.get('BACKUP_INTERVAL_HOURS', '24') or 0)
     app.config['BACKUP_MAX_KEEP'] = int(os.environ.get('BACKUP_MAX_KEEP', '30'))
+    app.config['SCHOOL_TIMEZONE'] = os.environ.get('SCHOOL_TIMEZONE', 'Africa/Johannesburg')
+    app.config['WELLNESS_REMINDER_INTERVAL_SECONDS'] = int(os.environ.get('WELLNESS_REMINDER_INTERVAL_SECONDS', '900'))
     
     # Initialize extensions
     db.init_app(app)
@@ -65,7 +67,9 @@ def create_app():
         except Exception:
             pass
 
-    from app.services.scheduler import start_backup_scheduler
-    start_backup_scheduler(app)
+    if not os.environ.get('DISABLE_BACKGROUND_JOBS'):
+        from app.services.scheduler import start_backup_scheduler, start_wellness_reminder_scheduler
+        start_backup_scheduler(app)
+        start_wellness_reminder_scheduler(app)
     
     return app

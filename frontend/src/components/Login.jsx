@@ -96,7 +96,7 @@ const Login = ({ onLogin }) => {
           </div>
           <h1 className="text-4xl font-bold text-white mb-3">
             <span className="bg-gradient-to-r from-brand-cyan to-white bg-clip-text text-transparent">
-              Athens Sports
+              HER-PACE
             </span>
           </h1>
           <p className="text-slate-400 text-lg">Athlete Monitoring System</p>
@@ -195,7 +195,7 @@ const Login = ({ onLogin }) => {
               <div className="w-full border-t border-slate-700"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-brand-bg-light text-slate-500">New to Athens?</span>
+              <span className="px-4 bg-brand-bg-light text-slate-500">New to HER-PACE?</span>
             </div>
           </div>
 
@@ -220,7 +220,7 @@ const Login = ({ onLogin }) => {
 
         <div className="mt-8 text-center">
           <p className="text-sm text-slate-600">
-            © {new Date().getFullYear()} Athens Sports. Athlete monitoring for the modern coach.
+            © {new Date().getFullYear()} HER-PACE. Athlete monitoring for the modern coach.
           </p>
         </div>
       </div>

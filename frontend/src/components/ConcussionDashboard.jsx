@@ -262,6 +262,26 @@ const ConcussionDashboard = ({ user }) => {
   }
 
   return (
+    <div className="max-w-3xl mx-auto space-y-6">
+      <div className="bg-brand-bg-light border border-brand-border rounded-2xl p-8 text-center">
+        <div className="text-5xl mb-4">🧠</div>
+        <h2 className="text-2xl font-bold text-white mb-3">Headway by Concusio</h2>
+        <p className="text-slate-400 mb-6">Please use the Concusio app for concussion support and management.</p>
+        <a href="https://www.concusio.co.za" target="_blank" rel="noreferrer" className="inline-flex px-6 py-3 bg-brand-cyan text-white rounded-lg hover:opacity-90">
+          Open Concusio
+        </a>
+        <div className="mt-8 flex justify-center">
+          <img
+            src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=https%3A%2F%2Fwww.concusio.co.za"
+            alt="QR code for Headway by Concusio"
+            className="w-56 h-56 bg-white p-2 rounded-lg"
+          />
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { workload } from '../services/workload';
 import { recovery } from '../services/recovery';
-import { athletes } from '../services/athletes';
+import { athletes, teams } from '../services/athletes';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell } from 'recharts';
 
 const WorkloadDashboard = ({ user }) => {
@@ -16,6 +16,10 @@ const WorkloadDashboard = ({ user }) => {
   const [selectedSession, setSelectedSession] = useState(null);
   const [error, setError] = useState(null);
   const [sportBreakdown, setSportBreakdown] = useState([]);
+  const [teamList, setTeamList] = useState([]);
+  const [selectedTeam, setSelectedTeam] = useState('');
+  const [viewMode, setViewMode] = useState('athlete');
+  const [teamAcwrData, setTeamAcwrData] = useState(null);
 
   // Memoized athlete ID getter
   const getAthleteId = useCallback(() => {
@@ -31,6 +35,12 @@ const WorkloadDashboard = ({ user }) => {
   }, []);
 
   useEffect(() => {
+    if (user.role !== 'athlete') {
+      loadTeams();
+    }
+  }, [user]);
+
+  useEffect(() => {
     const athleteId = getAthleteId();
     if (athleteId) {
       loadWorkloadData();
@@ -38,6 +48,12 @@ const WorkloadDashboard = ({ user }) => {
       loadACWRData();
     }
   }, [getAthleteId, dateRange]);
+
+  useEffect(() => {
+    if (viewMode === 'team' && selectedTeam) {
+      loadTeamACWRData();
+    }
+  }, [viewMode, selectedTeam]);
 
   const loadAthletes = async () => {
     try {
@@ -58,6 +74,31 @@ const WorkloadDashboard = ({ user }) => {
     } catch (err) {
       console.error('Error loading athletes:', err);
       setError('Failed to load athletes. Please try again.');
+    }
+  };
+
+  const loadTeams = async () => {
+    try {
+      const response = await teams.getAll();
+      if (response.data?.success) {
+        setTeamList(response.data.teams);
+        if (response.data.teams.length > 0) {
+          setSelectedTeam(response.data.teams[0].id);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading teams:', err);
+    }
+  };
+
+  const loadTeamACWRData = async () => {
+    const response = await workload.calculateTeamACWR(selectedTeam);
+    if (response?.success) {
+      setTeamAcwrData(response);
+      setError(null);
+    } else {
+      setTeamAcwrData(null);
+      setError(response?.message || 'Failed to load team ACWR data');
     }
   };
 
@@ -874,9 +915,33 @@ const WorkloadDashboard = ({ user }) => {
 
   return (
     <div className="space-y-6">
-      {renderAthleteSelector()}
+      {user.role !== 'athlete' && (
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex bg-slate-800 rounded-lg p-1">
+            <button onClick={() => setViewMode('athlete')} className={`px-4 py-2 rounded-md text-sm font-medium ${viewMode === 'athlete' ? 'bg-slate-700 text-white' : 'text-slate-300'}`}>Individual</button>
+            <button onClick={() => setViewMode('team')} className={`px-4 py-2 rounded-md text-sm font-medium ${viewMode === 'team' ? 'bg-slate-700 text-white' : 'text-slate-300'}`}>Team average</button>
+          </div>
+          {viewMode === 'team' && (
+            <select value={selectedTeam} onChange={(e) => setSelectedTeam(e.target.value)} className="bg-brand-bg-light border border-slate-700 rounded-lg px-4 py-2 text-white">
+              {teamList.map(team => <option key={team.id} value={team.id}>{team.name}</option>)}
+            </select>
+          )}
+        </div>
+      )}
+      {viewMode === 'athlete' && renderAthleteSelector()}
       {renderDateRangeSelector()}
       {renderSportFilter()}
+
+      {viewMode === 'team' && teamAcwrData && (
+        <div className="bg-brand-bg-light border border-brand-border rounded-2xl p-6">
+          <h3 className="text-xl font-bold text-white mb-4">Team Average ACWR</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div><p className="text-sm text-slate-400">ACWR</p><p className="text-3xl font-bold text-white">{teamAcwrData.acwr.toFixed(2)}</p></div>
+            <div><p className="text-sm text-slate-400">Athletes included</p><p className="text-2xl font-bold text-white">{teamAcwrData.included_athlete_count}/{teamAcwrData.athlete_count}</p></div>
+            <div><p className="text-sm text-slate-400">Date</p><p className="text-2xl font-bold text-white">{teamAcwrData.date}</p></div>
+          </div>
+        </div>
+      )}
 
       {/* Error Display */}
       {error && (

@@ -8,7 +8,7 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))  # /athensv2/backend
 PROJECT_ROOT = os.path.dirname(BASE_DIR)  # /athensv2
 FRONTEND_DIST_DIR = os.path.join(PROJECT_ROOT, "frontend", "dist")
 
-print("🚀 Athens Sports Server Starting...")
+print("🚀 HER-PACE Server Starting...")
 print(f"📁 Project root: {PROJECT_ROOT}")
 print(f"📁 Frontend dist: {FRONTEND_DIST_DIR}")
 

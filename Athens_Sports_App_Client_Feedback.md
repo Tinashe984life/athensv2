@@ -1,5 +1,5 @@
-# Athens Sports App — Client Feedback & Change Requests
-Source: Athens Sports App Spec (client annotations, page 7 onward)
+# HER-PACE App — Client Feedback & Change Requests
+Source: HER-PACE App Spec (client annotations, page 7 onward)
 Purpose: Implementation checklist for Copilot
 
 ---
@@ -182,8 +182,7 @@ Purpose: Implementation checklist for Copilot
 **Client comment (bug report):** "Couldn't access it on the 22/06/2026."
 
 **Action:**
-- [ ] **Bug:** Investigate and fix access issue preventing the Learner/Athlete landing page from loading (reported 22 June 2026).
-- [ ] Confirm fix with client once resolved.
+- No action to be taken. The client just didn't have the credentials to log in as the Learner/Athelete/Student
 
 ---
 

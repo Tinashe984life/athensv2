@@ -471,6 +471,9 @@ const InjuryHistory = ({ user }) => {
               onSuccess={() => {
                 setShowInjuryForm(false);
                 loadInjuryData();
+                if (user.role === 'athlete') {
+                  alert('Thank you for reporting your injury, however you must visit the medical office for an injury assessment and final reporting which happens every day at first break.');
+                }
               }}
               onClose={() => setShowInjuryForm(false)}
             />

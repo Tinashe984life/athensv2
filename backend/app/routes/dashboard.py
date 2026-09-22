@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
-from app.models import User, Team, Athlete, WellnessEntry, PerformanceTest
+from app.models import User, Team, Athlete, WellnessEntry, PerformanceTest, Notification
 from datetime import date, datetime, timedelta
 from sqlalchemy import func
 
@@ -171,6 +171,8 @@ def get_athlete_risk_assessment(athlete_id):
             team = Team.query.get(athlete.team_id)
             if not team or team.coach_id != current_user_id:
                 return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+        elif user.role == 'athlete' and athlete.user_id != current_user_id:
+            return jsonify({'success': False, 'message': 'Unauthorized'}), 403
         
         # Get wellness data (last 30 days)
         thirty_days_ago = date.today() - timedelta(days=30)
@@ -329,6 +331,8 @@ def get_workload_analysis(athlete_id):
             team = Team.query.get(athlete.team_id)
             if not team or team.coach_id != current_user_id:
                 return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+        elif user.role == 'athlete' and athlete.user_id != current_user_id:
+            return jsonify({'success': False, 'message': 'Unauthorized'}), 403
         
         # Get wellness entries with RPE and duration (last 28 days)
         twenty_eight_days_ago = date.today() - timedelta(days=28)
@@ -780,6 +784,8 @@ def get_notifications():
     current_user = User.query.get(current_user_id)
     
     notifications = []
+    stored = Notification.query.filter_by(user_id=current_user_id).order_by(Notification.created_at.desc()).limit(50).all()
+    notifications.extend([notification.to_dict() for notification in stored])
     
     if current_user.role == 'coach':
         from app.services.notifications import get_coach_notifications
@@ -795,7 +801,7 @@ def get_notifications():
                 date=today
             ).first()
             
-            if not wellness_entry:
+            if not wellness_entry and not any(notification['type'] == 'wellness_reminder' and notification['date'] == today.isoformat() for notification in notifications):
                 notifications.append({
                     'type': 'wellness_check',
                     'message': 'Daily wellness check pending',
