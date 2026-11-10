@@ -93,7 +93,7 @@ const AppLayout = ({ user, onLogout }) => {
               `flex items-center gap-3 px-1 py-2 transition-opacity ${isActive ? '' : 'opacity-80 hover:opacity-100'}`
             }
           >
-            <Avatar name={user.name} surname={user.surname} size="sm" />
+            <Avatar name={user.name} surname={user.surname} src={user.avatar_url} size="sm" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold tracking-tight text-gray-900 dark:text-white">
                 {user.name} {user.surname}
@@ -138,7 +138,7 @@ const AppLayout = ({ user, onLogout }) => {
               {mode === 'dark' ? <SunIcon /> : <MoonIcon />}
             </button>
             <NavLink to="/dashboard/profile" className="lg:hidden">
-              <Avatar name={user.name} surname={user.surname} size="sm" />
+              <Avatar name={user.name} surname={user.surname} src={user.avatar_url} size="sm" />
             </NavLink>
           </div>
         </div>

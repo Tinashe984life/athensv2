@@ -26,6 +26,7 @@ def create_app():
     app.config['BACKUP_MAX_KEEP'] = int(os.environ.get('BACKUP_MAX_KEEP', '30'))
     app.config['SCHOOL_TIMEZONE'] = os.environ.get('SCHOOL_TIMEZONE', 'Africa/Johannesburg')
     app.config['WELLNESS_REMINDER_INTERVAL_SECONDS'] = int(os.environ.get('WELLNESS_REMINDER_INTERVAL_SECONDS', '900'))
+    app.config['MAX_CONTENT_LENGTH'] = 8 * 1024 * 1024  # request size cap (avatar uploads etc.)
     
     # Initialize extensions
     db.init_app(app)
@@ -47,6 +48,7 @@ def create_app():
     from app.routes.recovery import bp as recovery_bp
     from app.routes.admin import bp as admin_bp
     from app.routes.sports import bp as sports_bp
+    from app.routes.users import bp as users_bp
     
     app.register_blueprint(health_bp)
     app.register_blueprint(auth_bp)
@@ -61,6 +63,7 @@ def create_app():
     app.register_blueprint(recovery_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(sports_bp)
+    app.register_blueprint(users_bp)
 
     with app.app_context():
         from app.services.bootstrap import ensure_super_admin, ensure_default_sports

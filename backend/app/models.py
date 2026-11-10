@@ -28,6 +28,7 @@ class User(db.Model):
         return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
     
     def to_dict(self):
+        from app.services.uploads import avatar_url_for
         return {
             'id': self.id,
             'username': self.username,
@@ -35,6 +36,7 @@ class User(db.Model):
             'name': self.name,
             'surname': self.surname,
             'role': self.role,
+            'avatar_url': avatar_url_for(self.id),
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 

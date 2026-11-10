@@ -131,9 +131,18 @@ export function Modal({ open, onClose, title, children, wide = false }) {
   );
 }
 
-export function Avatar({ name = '', surname = '', size = 'md' }) {
+export function Avatar({ name = '', surname = '', src, size = 'md' }) {
   const initials = `${(name[0] || '').toUpperCase()}${(surname[0] || '').toUpperCase()}` || '?';
   const sizes = { sm: 'h-8 w-8 text-[11px]', md: 'h-10 w-10 text-xs', lg: 'h-14 w-14 text-base' };
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt={`${name} ${surname}`.trim() || 'Profile picture'}
+        className={`${sizes[size]} shrink-0 rounded-md object-cover`}
+      />
+    );
+  }
   // Deterministic vibrant hue per person
   const str = `${name}${surname}`;
   let hash = 0;

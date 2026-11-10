@@ -150,7 +150,7 @@ const Students = () => {
             .filter((a) => teamFilter !== '__none__' || !a.team_id)
             .map((a) => (
               <Link key={a.id} to={`/dashboard/students/${a.id}`} className="card-hover flex items-center gap-4 !p-5">
-                <Avatar name={a.user?.name} surname={a.user?.surname} />
+                <Avatar name={a.user?.name} surname={a.user?.surname} src={a.user?.avatar_url} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold text-gray-900 dark:text-white">
                     {a.user?.name} {a.user?.surname}

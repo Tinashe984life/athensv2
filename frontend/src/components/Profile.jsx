@@ -1,15 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme, ACCENTS, BG_PRESETS, canvasTint } from '../context/ThemeContext';
 import { athletes } from '../services/athletes';
-import { PageHeader, Avatar, SectionHeader } from './ui';
+import { users } from '../services/users';
+import { PageHeader, Avatar, SectionHeader, Alert } from './ui';
 import HexWheel from './HexWheel';
 
-const Profile = ({ user }) => {
+const Profile = ({ user, onUserUpdate }) => {
   const { mode, setMode, accent, accentHex, bg, setAccent, setAccentCustom, setBg } = useTheme();
   const [myAthleteId, setMyAthleteId] = useState(null);
   const [showAccentWheel, setShowAccentWheel] = useState(false);
   const [showBgWheel, setShowBgWheel] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [photoMsg, setPhotoMsg] = useState(null); // {type, text}
+  const fileRef = useRef(null);
 
   useEffect(() => {
     if (user.role !== 'athlete') return;
@@ -18,6 +22,39 @@ const Profile = ({ user }) => {
       .then((res) => setMyAthleteId(res.data?.athletes?.[0]?.id || null))
       .catch(() => {});
   }, [user.role]);
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploading(true);
+    setPhotoMsg(null);
+    try {
+      const res = await users.uploadAvatar(user.id, file);
+      if (res.data?.success) {
+        onUserUpdate?.({ avatar_url: res.data.avatar_url });
+        setPhotoMsg({ type: 'success', text: 'Profile picture updated.' });
+      }
+    } catch (err) {
+      setPhotoMsg({ type: 'error', text: err.response?.data?.message || 'Failed to upload picture.' });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    setUploading(true);
+    setPhotoMsg(null);
+    try {
+      await users.deleteAvatar(user.id);
+      onUserUpdate?.({ avatar_url: null });
+      setPhotoMsg({ type: 'success', text: 'Profile picture removed.' });
+    } catch (err) {
+      setPhotoMsg({ type: 'error', text: err.response?.data?.message || 'Failed to remove picture.' });
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const roleLabel = user.role === 'admin' ? 'Administrator' : user.role === 'coach' ? 'Teacher / Coach' : 'Student';
 
@@ -33,13 +70,44 @@ const Profile = ({ user }) => {
         {/* Account */}
         <div className="lg:col-span-4">
           <SectionHeader label="Account" />
+          {photoMsg && (
+            <Alert type={photoMsg.type === 'success' ? 'success' : 'error'} onDismiss={() => setPhotoMsg(null)}>
+              {photoMsg.text}
+            </Alert>
+          )}
           <div className="mb-6 flex items-center gap-4">
-            <Avatar name={user.name} surname={user.surname} size="lg" />
+            <Avatar name={user.name} surname={user.surname} src={user.avatar_url} size="lg" />
             <div>
               <h2 className="text-lg font-bold tracking-tight text-gray-900 dark:text-white">
                 {user.name} {user.surname}
               </h2>
               <span className="badge-accent mt-1">{roleLabel}</span>
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  onChange={handleFile}
+                  className="hidden"
+                  aria-label="Upload profile picture"
+                />
+                <button
+                  onClick={() => fileRef.current?.click()}
+                  disabled={uploading}
+                  className="btn-secondary !px-3 !py-1.5 !text-xs"
+                >
+                  {uploading ? 'Uploading…' : user.avatar_url ? 'Change photo' : 'Upload photo'}
+                </button>
+                {user.avatar_url && (
+                  <button
+                    onClick={handleRemovePhoto}
+                    disabled={uploading}
+                    className="btn-ghost !px-3 !py-1.5 !text-xs !text-red-500"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
             </div>
           </div>
           <dl>

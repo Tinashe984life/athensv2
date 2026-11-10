@@ -163,7 +163,7 @@ const AdminPanel = ({ user }) => {
                 <tr key={u.id}>
                   <td className="pl-6">
                     <div className="flex items-center gap-3">
-                      <Avatar name={u.name} surname={u.surname} size="sm" />
+                      <Avatar name={u.name} surname={u.surname} src={u.avatar_url} size="sm" />
                       <span className="font-medium text-gray-900 dark:text-white">
                         {u.name} {u.surname}
                       </span>

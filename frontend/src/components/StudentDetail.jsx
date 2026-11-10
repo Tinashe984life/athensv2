@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   LineChart,
@@ -12,6 +12,7 @@ import {
 import { athletes, teams } from '../services/athletes';
 import { sports } from '../services/sports';
 import { workload } from '../services/workload';
+import { users } from '../services/users';
 import { PageHeader, PageLoader, EmptyState, Alert, Avatar, Modal, SESSION_TYPE_META } from './ui';
 
 const TABS = [
@@ -56,6 +57,27 @@ const StudentDetail = ({ user }) => {
   const [chartRecords, setChartRecords] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoRef = useRef(null);
+
+  const handlePhoto = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !athlete?.user?.id) return;
+    setUploadingPhoto(true);
+    setMessage(null);
+    try {
+      const res = await users.uploadAvatar(athlete.user.id, file);
+      if (res.data?.success) {
+        setAthlete((prev) => ({ ...prev, user: { ...prev.user, avatar_url: res.data.avatar_url } }));
+        setMessage({ type: 'success', text: 'Profile picture updated.' });
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to upload picture.' });
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -172,7 +194,35 @@ const StudentDetail = ({ user }) => {
     <div>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          <Avatar name={athlete.user?.name} surname={athlete.user?.surname} size="lg" />
+          <div className="group relative">
+            <Avatar
+              name={athlete.user?.name}
+              surname={athlete.user?.surname}
+              src={athlete.user?.avatar_url}
+              size="lg"
+            />
+            {(isStaff || athlete.user_id === user.id) && (
+              <>
+                <input
+                  ref={photoRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  onChange={handlePhoto}
+                  className="hidden"
+                  aria-label="Upload profile picture"
+                />
+                <button
+                  onClick={() => photoRef.current?.click()}
+                  disabled={uploadingPhoto}
+                  className="absolute -bottom-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-md bg-gray-900 text-[10px] text-white opacity-80 transition hover:opacity-100 dark:bg-white dark:text-gray-900"
+                  title="Change profile picture"
+                  aria-label="Change profile picture"
+                >
+                  {uploadingPhoto ? '…' : '📷'}
+                </button>
+              </>
+            )}
+          </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
               {athlete.user?.name} {athlete.user?.surname}

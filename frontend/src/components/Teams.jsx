@@ -191,7 +191,7 @@ const Teams = ({ user }) => {
                   <ul className="divide-y divide-gray-100 dark:divide-gray-800">
                     {selected.athletes.map((a) => (
                       <li key={a.id} className="flex items-center gap-3 py-3">
-                        <Avatar name={a.user?.name} surname={a.user?.surname} size="sm" />
+                        <Avatar name={a.user?.name} surname={a.user?.surname} src={a.user?.avatar_url} size="sm" />
                         <div className="min-w-0 flex-1">
                           <Link
                             to={`/dashboard/students/${a.id}`}
