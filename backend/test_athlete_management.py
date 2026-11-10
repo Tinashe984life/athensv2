@@ -46,14 +46,20 @@ def main():
                       headers=auth_header(ath_token))
             rec.check('Athlete blocked from editing teammate profile', r.status_code == 403)
 
-            # Coach from another team cannot manage this athlete
+            # Coaches now have school-wide access to all athletes
             coach2_token, _, team2_id = register_and_login_coach(c, 'coach_ath_mgmt_2', 'CoachPass2!')
             r = c.get(f'/api/athletes/{athlete_id}', headers=auth_header(coach2_token))
-            rec.check('Other coach blocked from viewing athlete', r.status_code == 403)
+            rec.check('Other coach can view any athlete (school-wide access)', r.status_code == 200)
 
             r = c.post('/api/athletes/', json={'name': 'X', 'surname': 'Y', 'team_id': team_id},
                        headers=auth_header(coach2_token))
-            rec.check('Other coach blocked from adding athlete to team they do not own', r.status_code == 403)
+            rec.check('Other coach can add athlete to any team (school-wide access)', r.status_code == 201)
+
+            # Athlete creation no longer requires a team
+            r = c.post('/api/athletes/', json={'name': 'Free', 'surname': 'Agent'},
+                       headers=auth_header(coach_token))
+            rec.check('Coach creates athlete without a team', r.status_code == 201
+                      and r.get_json()['athlete']['team_id'] is None)
 
             # Coach deletes athlete
             r = c.delete(f'/api/athletes/{other_athlete["id"]}', headers=auth_header(coach_token))

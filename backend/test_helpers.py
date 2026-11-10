@@ -98,7 +98,7 @@ def login(client, username, password):
 
 
 def register_and_login_coach(client, username='coach_test', password='TestPass123!', name='Coach', surname='Test'):
-    """Register a coach (which auto-creates a team) and return (token, user, team_id)."""
+    """Register a coach, log in, create a team in-app, and return (token, user, team_id)."""
     r = register(client, username, password, name, surname, 'coach')
     if r.status_code != 201:
         raise RuntimeError(f'Coach registration failed: {r.get_json()}')
@@ -107,8 +107,10 @@ def register_and_login_coach(client, username='coach_test', password='TestPass12
     body = r.get_json()
     token = body['access_token']
 
-    r = client.get('/api/teams/', headers=auth_header(token))
-    team_id = r.get_json()['teams'][0]['id']
+    r = client.post('/api/teams/', json={'name': f"{name}'s Team"}, headers=auth_header(token))
+    if r.status_code != 201:
+        raise RuntimeError(f'Team creation failed: {r.get_json()}')
+    team_id = r.get_json()['team']['id']
     return token, body['user'], team_id
 
 

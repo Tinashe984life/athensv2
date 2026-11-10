@@ -46,6 +46,7 @@ def create_app():
     from app.routes.workload import bp as workload_bp
     from app.routes.recovery import bp as recovery_bp
     from app.routes.admin import bp as admin_bp
+    from app.routes.sports import bp as sports_bp
     
     app.register_blueprint(health_bp)
     app.register_blueprint(auth_bp)
@@ -59,11 +60,16 @@ def create_app():
     app.register_blueprint(workload_bp)
     app.register_blueprint(recovery_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(sports_bp)
 
     with app.app_context():
-        from app.services.bootstrap import ensure_super_admin
+        from app.services.bootstrap import ensure_super_admin, ensure_default_sports
         try:
             ensure_super_admin()
+        except Exception:
+            pass
+        try:
+            ensure_default_sports()
         except Exception:
             pass
 

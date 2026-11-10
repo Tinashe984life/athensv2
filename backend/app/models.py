@@ -67,7 +67,7 @@ class Athlete(db.Model):
     
     id = db.Column(db.String(50), primary_key=True)
     user_id = db.Column(db.String(50), db.ForeignKey('users.id'), unique=True, nullable=False)
-    team_id = db.Column(db.String(50), db.ForeignKey('teams.id'), nullable=False)
+    team_id = db.Column(db.String(50), db.ForeignKey('teams.id'), nullable=True)
     jersey_number = db.Column(db.Integer, nullable=True)
     age = db.Column(db.Integer, nullable=True)
     date_of_birth = db.Column(db.Date, nullable=True)
@@ -837,4 +837,88 @@ class NormativeBenchmark(db.Model):
             'age': self.age,
             'rating_label': self.rating_label,
             'threshold_value': self.threshold_value,
+        }
+
+
+class Sport(db.Model):
+    __tablename__ = 'sports'
+
+    id = db.Column(db.String(50), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    description = db.Column(db.String(255), nullable=True)
+    icon = db.Column(db.String(10), nullable=True)  # emoji
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    metrics = db.relationship('SportMetric', backref='sport', lazy=True, order_by='SportMetric.name')
+
+    def to_dict(self):
+        active_metrics = [m for m in self.metrics if m.is_active]
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'icon': self.icon,
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'metrics': [m.to_dict() for m in active_metrics],
+            'metric_count': len(active_metrics),
+        }
+
+
+class SportMetric(db.Model):
+    __tablename__ = 'sport_metrics'
+
+    id = db.Column(db.String(50), primary_key=True, default=lambda: str(uuid.uuid4()))
+    sport_id = db.Column(db.String(50), db.ForeignKey('sports.id'), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    unit = db.Column(db.String(30), nullable=True)  # e.g. 's', 'cm', 'level', '%'
+    description = db.Column(db.String(255), nullable=True)
+    direction = db.Column(db.String(10), default='higher')  # 'higher' or 'lower' = better
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'sport_id': self.sport_id,
+            'sport_name': self.sport.name if self.sport else None,
+            'name': self.name,
+            'unit': self.unit,
+            'description': self.description,
+            'direction': self.direction,
+            'is_active': self.is_active,
+        }
+
+
+class MetricRecord(db.Model):
+    __tablename__ = 'metric_records'
+
+    id = db.Column(db.String(50), primary_key=True, default=lambda: str(uuid.uuid4()))
+    athlete_id = db.Column(db.String(50), db.ForeignKey('athletes.id'), nullable=False)
+    metric_id = db.Column(db.String(50), db.ForeignKey('sport_metrics.id'), nullable=False)
+    value = db.Column(db.Float, nullable=False)
+    date = db.Column(db.Date, nullable=False, default=date.today)
+    notes = db.Column(db.String(255), nullable=True)
+    recorded_by = db.Column(db.String(50), db.ForeignKey('users.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    metric = db.relationship('SportMetric', backref='records', lazy=True)
+    athlete = db.relationship('Athlete', backref='metric_records', lazy=True)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'athlete_id': self.athlete_id,
+            'athlete_name': f"{self.athlete.user.name} {self.athlete.user.surname}" if self.athlete and self.athlete.user else None,
+            'metric_id': self.metric_id,
+            'metric_name': self.metric.name if self.metric else None,
+            'unit': self.metric.unit if self.metric else None,
+            'sport_id': self.metric.sport_id if self.metric else None,
+            'sport_name': self.metric.sport.name if self.metric and self.metric.sport else None,
+            'value': self.value,
+            'date': self.date.isoformat() if self.date else None,
+            'notes': self.notes,
+            'recorded_by': self.recorded_by,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
         }

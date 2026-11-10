@@ -21,9 +21,9 @@ def serve_react_root():
 
 @app.route("/<path:path>")
 def serve_react_all(path):
-    # Don't interfere with API routes
+    # Unmatched API routes should return a JSON 404, not the SPA shell
     if path.startswith("api/"):
-        return app.view_functions[rule.endpoint](**request.view_args) if rule else "API not found"
+        return {"success": False, "message": "API endpoint not found"}, 404
     
     # Try to serve static file
     if path != "" and os.path.exists(os.path.join(FRONTEND_DIST_DIR, path)):

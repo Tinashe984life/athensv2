@@ -21,10 +21,8 @@ def get_athletes():
         athletes = []
         
         if user.role == 'coach':
-            # Get coach's teams and their athletes
-            teams = Team.query.filter_by(coach_id=current_user_id).all()
-            team_ids = [team.id for team in teams]
-            athletes = Athlete.query.filter(Athlete.team_id.in_(team_ids)).all()
+            # Coaches have school-wide access to all athletes
+            athletes = Athlete.query.all()
             
         elif user.role == 'athlete':
             # Athletes can only see themselves
@@ -48,27 +46,26 @@ def get_athletes():
 @bp.route('/', methods=['POST'])
 @jwt_required()
 def create_athlete():
-    """Create a new athlete (coach only)"""
+    """Create a new athlete (coach/admin)"""
     try:
         current_user_id = get_jwt_identity()
         user = User.query.get(current_user_id)
         
-        if user.role != 'coach':
-            return jsonify({'success': False, 'message': 'Only coaches can create athletes'}), 403
+        if user.role not in ('coach', 'admin'):
+            return jsonify({'success': False, 'message': 'Only coaches and admins can create athletes'}), 403
         
         data = request.get_json()
-        required_fields = ['name', 'surname', 'team_id']
+        required_fields = ['name', 'surname']
         for field in required_fields:
             if field not in data:
                 return jsonify({'success': False, 'message': f'Missing required field: {field}'}), 400
         
-        # Check if team exists and belongs to coach
-        team = Team.query.get(data['team_id'])
-        if not team:
-            return jsonify({'success': False, 'message': 'Team not found'}), 404
-        
-        if team.coach_id != current_user_id:
-            return jsonify({'success': False, 'message': 'Unauthorized to add athletes to this team'}), 403
+        # Validate team if provided (optional)
+        team_id = data.get('team_id') or None
+        if team_id:
+            team = Team.query.get(team_id)
+            if not team:
+                return jsonify({'success': False, 'message': 'Team not found'}), 404
         
         # Create user account for athlete
         username = f"{data['name'].lower()}.{data['surname'].lower()}"
@@ -93,12 +90,18 @@ def create_athlete():
         
         # Create athlete profile
         athlete_id = f"ATH-{uuid.uuid4().hex[:8].upper()}"
+
+        date_of_birth = None
+        if data.get('date_of_birth'):
+            date_of_birth = datetime.strptime(data['date_of_birth'], '%Y-%m-%d').date()
+
         athlete = Athlete(
             id=athlete_id,
             user_id=user_id,
-            team_id=data['team_id'],
+            team_id=team_id,
             jersey_number=data.get('jersey_number'),
             age=data.get('age'),
+            date_of_birth=date_of_birth,
             height=data.get('height'),
             weight=data.get('weight'),
             position=data.get('position'),
@@ -108,8 +111,14 @@ def create_athlete():
             sport_attendance=data.get('sport_attendance'),
             gym_attendance=data.get('gym_attendance'),
             dominant_side=data.get('dominant_side'),
-            bio_notes=data.get('bio_notes')
+            bio_notes=data.get('bio_notes'),
+            sex=data.get('sex'),
+            grade_level=data.get('grade_level'),
+            class_group=data.get('class_group')
         )
+
+        if athlete.date_of_birth:
+            athlete.age = athlete.calculate_age()
         
         db.session.add(athlete_user)
         db.session.add(athlete)
@@ -143,12 +152,8 @@ def get_athlete(athlete_id):
         
         # Check permissions
         can_view = False
-        if user.role == 'admin':
+        if user.role in ('admin', 'coach'):
             can_view = True
-        elif user.role == 'coach':
-            team = Team.query.get(athlete.team_id)
-            if team and team.coach_id == current_user_id:
-                can_view = True
         elif user.role == 'athlete' and athlete.user_id == current_user_id:
             can_view = True
         
@@ -177,12 +182,8 @@ def update_athlete(athlete_id):
         
         # Check permissions
         can_edit = False
-        if user.role == 'admin':
+        if user.role in ('admin', 'coach'):
             can_edit = True
-        elif user.role == 'coach':
-            team = Team.query.get(athlete.team_id)
-            if team and team.coach_id == current_user_id:
-                can_edit = True
         elif user.role == 'athlete' and athlete.user_id == current_user_id:
             can_edit = True
         
@@ -214,11 +215,13 @@ def update_athlete(athlete_id):
             athlete.date_of_birth = datetime.strptime(data['date_of_birth'], '%Y-%m-%d').date()
             athlete.age = athlete.calculate_age()
 
-        if 'team_id' in data and user.role == 'admin':
-            new_team = Team.query.get(data['team_id'])
-            if not new_team:
-                return jsonify({'success': False, 'message': 'Team not found'}), 404
-            athlete.team_id = data['team_id']
+        if 'team_id' in data and user.role in ('admin', 'coach'):
+            new_team_id = data['team_id'] or None
+            if new_team_id:
+                new_team = Team.query.get(new_team_id)
+                if not new_team:
+                    return jsonify({'success': False, 'message': 'Team not found'}), 404
+            athlete.team_id = new_team_id
         
         athlete.updated_at = datetime.utcnow()
         db.session.commit()
@@ -247,15 +250,27 @@ def delete_athlete(athlete_id):
         
         # Check permissions
         can_delete = False
-        if user.role == 'admin':
+        if user.role in ('admin', 'coach'):
             can_delete = True
-        elif user.role == 'coach':
-            team = Team.query.get(athlete.team_id)
-            if team and team.coach_id == current_user_id:
-                can_delete = True
         
         if not can_delete:
             return jsonify({'success': False, 'message': 'Unauthorized to delete this athlete'}), 403
+        
+        # Delete dependent records first (their athlete_id columns are NOT NULL)
+        from app.models import (
+            MetricRecord, WorkloadSession, RecoverySession, WellnessEntry,
+            PerformanceTest, InjuryRecord, ConcussionSymptomScore,
+            PrehabRecommendation, Notification,
+        )
+        injury_ids = [i.id for i in InjuryRecord.query.filter_by(athlete_id=athlete.id).all()]
+        if injury_ids:
+            ConcussionSymptomScore.query.filter(
+                ConcussionSymptomScore.injury_id.in_(injury_ids)
+            ).delete(synchronize_session=False)
+        for model in (MetricRecord, WorkloadSession, RecoverySession, WellnessEntry,
+                      PerformanceTest, InjuryRecord, PrehabRecommendation):
+            model.query.filter_by(athlete_id=athlete.id).delete(synchronize_session=False)
+        Notification.query.filter_by(user_id=athlete.user_id).delete(synchronize_session=False)
         
         # Delete associated user
         user_to_delete = User.query.get(athlete.user_id)
@@ -290,21 +305,12 @@ def search_athletes():
         
         query = Athlete.query.join(User, Athlete.user_id == User.id)
         
-        # Apply filters based on user role
-        if user.role == 'coach':
-            teams = Team.query.filter_by(coach_id=current_user_id).all()
-            team_ids = [team.id for team in teams]
-            query = query.filter(Athlete.team_id.in_(team_ids))
-        elif user.role == 'athlete':
+        # Apply filters based on user role (coaches have school-wide access)
+        if user.role == 'athlete':
             query = query.filter(Athlete.user_id == current_user_id)
         
         # Apply team filter if specified
         if team_id:
-            if user.role == 'coach':
-                # Verify coach has access to this team
-                team = Team.query.get(team_id)
-                if not team or team.coach_id != current_user_id:
-                    return jsonify({'success': False, 'message': 'Unauthorized'}), 403
             query = query.filter(Athlete.team_id == team_id)
         
         # Apply search query

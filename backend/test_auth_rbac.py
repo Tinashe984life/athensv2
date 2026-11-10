@@ -18,10 +18,10 @@ def main():
             r = register(c, 'hacker2', 'test123', 'Hack', 'Er', 'superuser')
             rec.check('Register blocks unknown role', r.status_code == 400)
 
-            # Coach self-registration auto-creates a team
+            # Coach self-registration + in-app team creation
             coach_token, coach_user, team_id = register_and_login_coach(c, 'coach_rbac', 'CoachPass1!')
             rec.check('Coach registration succeeds', bool(coach_token))
-            rec.check('Coach auto-assigned a team', bool(team_id))
+            rec.check('Coach creates a team in-app', bool(team_id))
 
             # Duplicate username rejected
             r = register(c, 'coach_rbac', 'CoachPass1!', 'Coach', 'Dup', 'coach')

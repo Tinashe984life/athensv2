@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token
 from app import db
-from app.models import User, Team
+from app.models import User, Athlete
 from app.authz import (
     is_super_admin,
     enrich_user_payload,
@@ -53,14 +53,13 @@ def register():
 
         db.session.add(user)
 
-        if data['role'] == 'coach':
-            team_id = f"TEAM-{data['name'][:4].upper()}-{uuid.uuid4().hex[:6].upper()}"
-            team = Team(
-                id=team_id,
-                name=data.get('teamName', f"{data['name']}'s Team"),
-                coach_id=user_id
+        if data['role'] == 'athlete':
+            athlete = Athlete(
+                id=f"ATH-{uuid.uuid4().hex[:8].upper()}",
+                user_id=user_id,
+                team_id=None
             )
-            db.session.add(team)
+            db.session.add(athlete)
 
         db.session.commit()
 

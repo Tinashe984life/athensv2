@@ -27,7 +27,7 @@ def get_teams():
         elif user.role == 'athlete':
             # Get the team the athlete belongs to
             athlete = Athlete.query.filter_by(user_id=current_user_id).first()
-            if athlete:
+            if athlete and athlete.team_id:
                 team = Team.query.get(athlete.team_id)
                 if team:
                     return jsonify({
@@ -51,13 +51,13 @@ def get_teams():
 @bp.route('/', methods=['POST'])
 @jwt_required()
 def create_team():
-    """Create a new team (coach only)"""
+    """Create a new team (coach/admin)"""
     try:
         current_user_id = get_jwt_identity()
         user = User.query.get(current_user_id)
         
-        if user.role != 'coach':
-            return jsonify({'success': False, 'message': 'Only coaches can create teams'}), 403
+        if user.role not in ('coach', 'admin'):
+            return jsonify({'success': False, 'message': 'Only coaches and admins can create teams'}), 403
         
         data = request.get_json()
         required_fields = ['name']
@@ -65,12 +65,20 @@ def create_team():
             if field not in data:
                 return jsonify({'success': False, 'message': f'Missing required field: {field}'}), 400
         
+        # Admins may assign another coach; default to themselves
+        coach_id = current_user_id
+        if user.role == 'admin' and data.get('coach_id'):
+            coach = User.query.get(data['coach_id'])
+            if not coach:
+                return jsonify({'success': False, 'message': 'Coach not found'}), 404
+            coach_id = data['coach_id']
+        
         # Create team
         team_id = f"TEAM-{uuid.uuid4().hex[:8].upper()}"
         team = Team(
             id=team_id,
             name=data['name'],
-            coach_id=current_user_id,
+            coach_id=coach_id,
             sport=data.get('sport'),
             season=data.get('season')
         )

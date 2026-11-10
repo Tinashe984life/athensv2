@@ -61,6 +61,56 @@ def create_workload_session():
     return jsonify({'success': True, 'session': session.to_dict()}), 201
 
 
+@bp.route('/sessions', methods=['GET'])
+@jwt_required()
+def list_workload_sessions():
+    """List workload sessions with optional filters"""
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+
+    query = WorkloadSession.query
+
+    # Athletes only see their own sessions
+    if current_user.role == 'athlete':
+        athlete = Athlete.query.filter_by(user_id=current_user_id).first()
+        if not athlete:
+            return jsonify({'success': True, 'sessions': [], 'count': 0})
+        query = query.filter(WorkloadSession.athlete_id == athlete.id)
+    else:
+        athlete_id = request.args.get('athlete_id')
+        if athlete_id:
+            query = query.filter(WorkloadSession.athlete_id == athlete_id)
+
+    team_id = request.args.get('team_id')
+    if team_id:
+        query = query.join(Athlete, WorkloadSession.athlete_id == Athlete.id).filter(
+            Athlete.team_id == team_id
+        )
+
+    session_type = request.args.get('session_type')
+    if session_type:
+        query = query.filter(WorkloadSession.session_type == session_type)
+
+    start_date = request.args.get('start_date')
+    if start_date:
+        query = query.filter(WorkloadSession.date >= datetime.strptime(start_date, '%Y-%m-%d').date())
+    end_date = request.args.get('end_date')
+    if end_date:
+        query = query.filter(WorkloadSession.date <= datetime.strptime(end_date, '%Y-%m-%d').date())
+
+    limit = min(int(request.args.get('limit', 50)), 200)
+
+    sessions = query.order_by(
+        WorkloadSession.date.desc(), WorkloadSession.created_at.desc()
+    ).limit(limit).all()
+
+    return jsonify({
+        'success': True,
+        'sessions': [session.to_dict() for session in sessions],
+        'count': len(sessions)
+    })
+
+
 @bp.route('/sessions/<session_id>', methods=['GET'])
 @jwt_required()
 def get_workload_session(session_id):

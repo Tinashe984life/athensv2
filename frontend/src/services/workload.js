@@ -1,6 +1,20 @@
 import api from './api';
 
 export const workload = {
+  // List sessions (school-wide for coaches/admins, own for students)
+  listSessions: async (filters = {}) => {
+    try {
+      const params = new URLSearchParams(
+        Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== '' && v != null))
+      ).toString();
+      const response = await api.get(`/workload/sessions${params ? `?${params}` : ''}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error listing sessions:', error);
+      return { success: false, message: error.response?.data?.message || 'Failed to list sessions' };
+    }
+  },
+
   // Workload Sessions
   createWorkloadSession: async (sessionData) => {
     try {

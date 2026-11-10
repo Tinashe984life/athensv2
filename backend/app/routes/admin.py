@@ -166,19 +166,18 @@ def create_user():
         team.coach_id = user_id
 
     if role == 'athlete':
-        if not data.get('team_id'):
-            db.session.rollback()
-            return jsonify({'success': False, 'message': 'Team ID is required for athletes'}), 400
-        team = Team.query.get(data['team_id'])
-        if not team:
-            db.session.rollback()
-            return jsonify({'success': False, 'message': 'Team not found'}), 404
+        team_id = data.get('team_id')
+        if team_id:
+            team = Team.query.get(team_id)
+            if not team:
+                db.session.rollback()
+                return jsonify({'success': False, 'message': 'Team not found'}), 404
 
         athlete_id = f"ATH-{uuid.uuid4().hex[:8].upper()}"
         athlete = Athlete(
             id=athlete_id,
             user_id=user_id,
-            team_id=data['team_id'],
+            team_id=team_id or None,
             jersey_number=data.get('jersey_number'),
             age=data.get('age'),
             height=data.get('height'),
