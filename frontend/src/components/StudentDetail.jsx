@@ -12,7 +12,7 @@ import {
 import { athletes, teams } from '../services/athletes';
 import { sports } from '../services/sports';
 import { workload } from '../services/workload';
-import { PageHeader, PageLoader, EmptyState, Alert, Avatar, Modal } from './ui';
+import { PageHeader, PageLoader, EmptyState, Alert, Avatar, Modal, SESSION_TYPE_META } from './ui';
 
 const TABS = [
   { id: 'profile', label: 'Profile' },
@@ -203,15 +203,15 @@ const StudentDetail = ({ user }) => {
       </div>
 
       {/* Tabs */}
-      <div className="mb-6 flex gap-1 rounded-xl bg-gray-100 p-1 dark:bg-gray-800/60">
+      <div className="mb-6 flex gap-6 border-b border-gray-200 dark:border-gray-800">
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition ${
+            className={`-mb-px border-b-2 pb-2.5 text-sm transition-colors ${
               tab === t.id
-                ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-white'
-                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                ? 'border-accent-500 font-semibold text-gray-900 dark:text-white'
+                : 'border-transparent font-medium text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
             }`}
           >
             {t.label}
@@ -447,7 +447,9 @@ const StudentDetail = ({ user }) => {
                     <td className="whitespace-nowrap">{formatDate(s.date)}</td>
                     <td>{s.session_name || '—'}</td>
                     <td>
-                      <span className="badge-accent capitalize">{s.session_type === 'pe' ? 'PE' : s.session_type}</span>
+                      <span className={(SESSION_TYPE_META[s.session_type] || { badge: 'badge-gray' }).badge}>
+                        {(SESSION_TYPE_META[s.session_type] || { label: s.session_type }).label}
+                      </span>
                     </td>
                     <td>{s.duration_minutes} min</td>
                     <td>{s.perceived_exertion}/10</td>

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { athletes, teams } from '../services/athletes';
 import { workload } from '../services/workload';
-import { PageHeader, PageLoader, EmptyState, Alert, Modal } from './ui';
+import { PageHeader, PageLoader, EmptyState, Alert, Modal, SESSION_TYPE_META } from './ui';
 
 const SESSION_TYPES = [
   { id: 'pe', label: 'PE Lesson', icon: '🏫' },
@@ -154,15 +154,15 @@ const Sessions = ({ user }) => {
         </Alert>
       )}
 
-      <div className="mb-4 flex gap-1 rounded-xl bg-gray-100 p-1 dark:bg-gray-800/60 sm:max-w-md">
+      <div className="mb-5 flex gap-6 border-b border-gray-200 dark:border-gray-800">
         {[{ id: '', label: 'All' }, ...SESSION_TYPES].map((t) => (
           <button
             key={t.id}
             onClick={() => setTypeFilter(t.id)}
-            className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+            className={`-mb-px border-b-2 pb-2.5 text-sm transition-colors ${
               typeFilter === t.id
-                ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-white'
-                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                ? 'border-accent-500 font-semibold text-gray-900 dark:text-white'
+                : 'border-transparent font-medium text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
             }`}
           >
             {t.label}
@@ -202,8 +202,8 @@ const Sessions = ({ user }) => {
                   {isStaff && <td>{s.athlete_name || '—'}</td>}
                   <td>{s.session_name || '—'}</td>
                   <td>
-                    <span className="badge-accent capitalize">
-                      {s.session_type === 'pe' ? 'PE Lesson' : s.session_type}
+                    <span className={(SESSION_TYPE_META[s.session_type] || { badge: 'badge-gray' }).badge}>
+                      {(SESSION_TYPE_META[s.session_type] || { label: s.session_type }).label}
                     </span>
                   </td>
                   <td>{s.duration_minutes} min</td>

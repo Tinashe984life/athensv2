@@ -2,8 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Accent palettes (RGB triplets so Tailwind opacity modifiers work) */
+/* Accent palettes (RGB triplets so Tailwind opacity modifiers work).
+   Accent is reserved for indicators, trends and data — actions are monochrome. */
 :root,
+[data-accent='lime'] {
+  --accent-50: 247 254 231;
+  --accent-100: 236 252 203;
+  --accent-200: 217 249 157;
+  --accent-300: 190 242 100;
+  --accent-400: 163 230 53;
+  --accent-500: 132 204 22;
+  --accent-600: 101 163 13;
+  --accent-700: 77 124 15;
+}
+[data-accent='orange'] {
+  --accent-50: 255 247 237;
+  --accent-100: 255 237 213;
+  --accent-200: 254 215 170;
+  --accent-300: 253 186 116;
+  --accent-400: 251 146 60;
+  --accent-500: 249 115 22;
+  --accent-600: 234 88 12;
+  --accent-700: 194 65 12;
+}
 [data-accent='indigo'] {
   --accent-50: 238 242 255;
   --accent-100: 224 231 255;
@@ -64,57 +85,70 @@
   --accent-600: 225 29 72;
   --accent-700: 190 18 60;
 }
-[data-accent='amber'] {
-  --accent-50: 255 251 235;
-  --accent-100: 254 243 199;
-  --accent-200: 253 230 138;
-  --accent-300: 252 211 77;
-  --accent-400: 251 191 36;
-  --accent-500: 245 158 11;
-  --accent-600: 217 119 6;
-  --accent-700: 180 83 9;
-}
 
 @layer base {
   html {
     @apply antialiased scroll-smooth;
   }
+  :root {
+    --canvas: 250 250 249; /* stone-50 */
+  }
+  .dark {
+    --canvas: 10 10 12;
+  }
   body {
-    @apply bg-gray-50 text-gray-900 transition-colors duration-200 dark:bg-gray-950 dark:text-gray-100;
-    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    /* Customisable canvas; pure-white surfaces sit flush against it */
+    @apply text-gray-900 transition-colors duration-200 dark:text-gray-100;
+    background-color: rgb(var(--canvas));
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'tnum';
   }
   ::selection {
-    @apply bg-accent-200 text-accent-700;
+    @apply bg-accent-300/60 text-gray-900;
+  }
+  h1, h2, h3 {
+    @apply tracking-tight;
   }
 }
 
 @layer components {
+  .bg-canvas {
+    background-color: rgb(var(--canvas));
+  }
+  .bg-canvas-translucent {
+    background-color: rgb(var(--canvas) / 0.88);
+  }
+  /* Athletic CTA — vibrant accent fill with high-contrast ink */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-150 hover:bg-accent-500 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600 disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-md bg-accent-400 px-4 py-2.5 text-sm font-bold text-gray-950 transition-all duration-150 hover:bg-accent-300 active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 disabled:pointer-events-none disabled:opacity-40;
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-all duration-150 hover:bg-gray-50 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800;
+    @apply inline-flex items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-800 transition-all duration-150 hover:border-gray-900 hover:text-gray-900 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-40 dark:border-gray-700 dark:bg-transparent dark:text-gray-200 dark:hover:border-gray-300 dark:hover:text-white;
   }
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100;
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-900/5 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-gray-100;
   }
   .btn-danger {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-150 hover:bg-red-500 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-md bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-all duration-150 hover:bg-red-500 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-40;
   }
   .input-field {
-    @apply w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 shadow-sm transition-colors focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/25 disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500 dark:disabled:bg-gray-800;
+    @apply w-full rounded-md border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-gray-300 dark:focus:ring-gray-300 dark:disabled:bg-gray-800;
   }
   .label {
     @apply mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300;
   }
+  /* Editorial micro-label for metadata and section headers */
+  .micro-label {
+    @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-400 dark:text-gray-500;
+  }
+  /* Flat surface — forms, tables, modals; hairline border, no shadow */
   .card {
-    @apply rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900;
+    @apply rounded-md border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900;
   }
   .card-hover {
-    @apply card transition-all duration-150 hover:-translate-y-0.5 hover:border-accent-300 hover:shadow-md dark:hover:border-accent-600/50;
+    @apply card transition-colors duration-150 hover:border-gray-900 dark:hover:border-gray-400;
   }
   .badge {
-    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+    @apply inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide;
   }
   .badge-accent {
     @apply badge bg-accent-100 text-accent-700 dark:bg-accent-600/20 dark:text-accent-300;
@@ -131,11 +165,20 @@
   .badge-amber {
     @apply badge bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300;
   }
+  .badge-sky {
+    @apply badge bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300;
+  }
+  .badge-orange {
+    @apply badge bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300;
+  }
+  .badge-teal {
+    @apply badge bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-300;
+  }
   .table-base {
     @apply w-full text-left text-sm;
   }
   .table-base thead th {
-    @apply border-b border-gray-200 pb-3 pr-4 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:text-gray-400;
+    @apply border-b border-gray-200 pb-3 pr-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-400 dark:border-gray-800 dark:text-gray-500;
   }
   .table-base tbody td {
     @apply border-b border-gray-100 py-3 pr-4 text-gray-700 dark:border-gray-800/60 dark:text-gray-300;
