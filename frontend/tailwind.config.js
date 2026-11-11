@@ -27,9 +27,15 @@ export default {
           '0%': { opacity: '0', transform: 'translateY(8px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
+        'fade-in': {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
       },
       animation: {
         'fade-in-up': 'fade-in-up 0.3s ease-out both',
+        // Opacity-only: safe for wrappers (no transform => no fixed-position containing block)
+        'fade-in': 'fade-in 0.3s ease-out both',
       },
     },
   },

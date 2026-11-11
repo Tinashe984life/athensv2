@@ -167,7 +167,7 @@ const AppLayout = ({ user, onLogout }) => {
 
       {/* Main content */}
       <main className="px-4 py-8 sm:px-8 lg:pl-[18.5rem] lg:pr-12">
-        <div className="mx-auto max-w-6xl animate-fade-in-up">
+        <div className="animate-fade-in mx-auto max-w-6xl">
           <Outlet />
         </div>
       </main>

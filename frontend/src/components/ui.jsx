@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 export function Spinner({ className = 'h-8 w-8' }) {
   return (
@@ -111,23 +112,27 @@ export function Modal({ open, onClose, title, children, wide = false }) {
   }, [open, onClose]);
 
   if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-gray-950/50" onClick={onClose} />
-      <div
-        className={`relative max-h-[90vh] w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} animate-fade-in-up overflow-y-auto rounded-md border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900`}
-        role="dialog"
-        aria-modal="true"
-      >
-        <div className="mb-5 flex items-center justify-between border-b border-gray-100 pb-4 dark:border-gray-800">
-          <h2 className="text-lg font-bold tracking-tight text-gray-900 dark:text-white">{title}</h2>
-          <button onClick={onClose} className="btn-ghost !px-2 !py-1" aria-label="Close">
-            ✕
-          </button>
+  // Portal to <body>: ancestor transforms/stacking contexts can't displace or cover the dialog
+  return createPortal(
+    <div className="fixed inset-0 z-[100]">
+      <div className="absolute inset-0 bg-gray-950/50" onClick={onClose} aria-hidden="true" />
+      <div className="pointer-events-none relative flex h-full items-center justify-center p-4">
+        <div
+          className={`pointer-events-auto relative max-h-[85vh] w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} animate-fade-in-up overflow-y-auto rounded-md border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900`}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="mb-5 flex items-center justify-between border-b border-gray-100 pb-4 dark:border-gray-800">
+            <h2 className="text-lg font-bold tracking-tight text-gray-900 dark:text-white">{title}</h2>
+            <button onClick={onClose} className="btn-ghost !px-2 !py-1" aria-label="Close">
+              ✕
+            </button>
+          </div>
+          {children}
         </div>
-        {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
